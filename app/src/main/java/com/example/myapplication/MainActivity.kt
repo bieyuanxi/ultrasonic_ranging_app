@@ -4,23 +4,28 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioManager
-import android.media.AudioTrack
 import android.media.AudioRecord
+import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -38,7 +43,7 @@ class MainActivity : ComponentActivity() {
     // 发送声波相关变量
     private val SAMPLE_RATE_SEND = 48000
     private val DURATION_SEND = 2
-    private val AMPLITUDE_SEND = 10000
+    private val AMPLITUDE_SEND = 1000  // 振幅
     private var FREQUENCY_SEND = 20000
     private var audioTrack: AudioTrack? = null
     private var isPlaying = false
@@ -62,64 +67,114 @@ class MainActivity : ComponentActivity() {
             val inputValue = remember { mutableStateOf(FREQUENCY_SEND.toString()) }
             val sliderValue = remember { mutableFloatStateOf(inputValue.value.toFloat() / SLIDE_RATE) }
 
+            val soundList = remember { mutableStateListOf<Int>() }
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(text = "声波发送和接收示例")
-                Spacer(modifier = Modifier.height(20.dp))
-                Button(
-                    onClick = {
-                        if (isPlaying.value) {
-                            stopPlaying()
-                            isPlaying.value = false
-                        } else {
-                            val numSamples = SAMPLE_RATE_SEND * DURATION_SEND
-                            val audioData = generateSound(inputValue.value.toInt())
-                            playSound(audioData, numSamples)
-                            isPlaying.value = true
-                        }
-                    }
-                ) {
-                    Text(text = if (isPlaying.value) "停止发送" else "开始发送")
-                }
-                Text(
-                    text = "当前滑块值: ${sliderValue.floatValue}",
-                    style = androidx.compose.material3.MaterialTheme.typography.headlineMedium
-                )
-                Slider(
-                    value = sliderValue.floatValue,
-                    onValueChange = { newSliderValue ->
-                        sliderValue.floatValue = newSliderValue
-                        inputValue.value = (newSliderValue * SLIDE_RATE).toInt().toString()
+                Row {
+                    Button(
+                        onClick = {
+                            if (isPlaying.value) {
+                                stopPlaying()
+                                isPlaying.value = false
+                            } else {
+                                val numSamples = SAMPLE_RATE_SEND * DURATION_SEND
+                                val audioData = generateSound(inputValue.value.toInt())
+                                soundList.forEach { value ->
+                                    val samples = generateSound(value)
+                                    samples.forEachIndexed { index, sh ->
+                                        if(sh + audioData[index] > Short.MAX_VALUE) {
+                                            Log.e("amplitude", "amplitude overflow!")
+                                        }
+                                        audioData[index] = (sh + audioData[index]).toShort()
+                                    }
 
-                    },
-                    valueRange = 0f..100f
-                )
-                OutlinedTextField(
-                    value = inputValue.value,
-                    onValueChange = { newInput ->
-                        inputValue.value = newInput
-                        val parsedValue = newInput.toFloat() / SLIDE_RATE
-                        if (parsedValue in 0f..100f) {
-                            sliderValue.floatValue = parsedValue
+                                }
+
+                                playSound(audioData, numSamples)
+                                isPlaying.value = true
+                            }
                         }
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
+                    ) {
+                        Text(text = if (isPlaying.value) "停止发送" else "开始发送")
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                    Button(
+                        onClick = {
+                            if (isRecordingState.value) {
+                                stopRecording()
+                                isRecordingState.value = false
+                            } else {
+                                startRecording()
+                                isRecordingState.value = true
+                            }
+                        }
+                    ) {
+                        Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
+                    }
+                }
                 Spacer(modifier = Modifier.height(20.dp))
+
+                Row{
+                    Text(text = "sound1")
+                    Slider(
+                        modifier = Modifier.width(200.dp),
+                        value = sliderValue.floatValue,
+                        onValueChange = { newSliderValue ->
+                            sliderValue.floatValue = newSliderValue
+                            inputValue.value = (newSliderValue * SLIDE_RATE).toInt().toString()
+
+                        },
+                        valueRange = 0f..100f
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    OutlinedTextField(
+                        modifier = Modifier.width(80.dp),
+                        value = inputValue.value,
+                        onValueChange = { newInput ->
+                            inputValue.value = newInput
+                            val parsedValue = newInput.toFloat() / SLIDE_RATE
+                            if (parsedValue in 0f..100f) {
+                                sliderValue.floatValue = parsedValue
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+                soundList.forEachIndexed { index, value ->
+                    Row{
+                        Text(text = "sound1")
+                        Slider(
+                            modifier = Modifier.width(200.dp),
+                            value = value.toFloat(),
+                            onValueChange = { newSliderValue ->
+                                soundList[index] = newSliderValue.toInt()
+                            },
+                            valueRange = 0f..21000f
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        OutlinedTextField(
+                            modifier = Modifier.width(80.dp),
+                            value = value.toString(),
+                            onValueChange = { newInput ->
+//                                inputValue.value = newInput
+                                val parsedValue = if (newInput.isNotEmpty()) newInput.toInt() else 0
+                                if (parsedValue in 0..21000) {
+                                    soundList[index] = parsedValue
+                                }
+
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }}
                 Button(
                     onClick = {
-                        if (isRecordingState.value) {
-                            stopRecording()
-                            isRecordingState.value = false
-                        } else {
-                            startRecording()
-                            isRecordingState.value = true
-                        }
+                        soundList.add(1000)
                     }
                 ) {
-                    Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
+                    Text(text = "Add one")
                 }
             }
         }
@@ -140,7 +195,7 @@ class MainActivity : ComponentActivity() {
     private fun playSound(audioData: ShortArray, numSamples: Int) {
         val bufferSize = AudioTrack.getMinBufferSize(
             SAMPLE_RATE_SEND,
-            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.CHANNEL_OUT_MONO,      // 通道数配置，这里选择了单通道（FL）
             AudioFormat.ENCODING_PCM_16BIT
         )
 
@@ -148,7 +203,7 @@ class MainActivity : ComponentActivity() {
             audioTrack = AudioTrack(
                 AudioManager.STREAM_MUSIC,
                 SAMPLE_RATE_SEND,
-                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.CHANNEL_OUT_MONO,   // 通道数配置，这里选择了单通道（FL）
                 AudioFormat.ENCODING_PCM_16BIT,
                 bufferSize,
                 AudioTrack.MODE_STREAM
@@ -236,4 +291,13 @@ class MainActivity : ComponentActivity() {
             stopRecording()
         }
     }
+}
+
+@Composable
+fun listof(){
+
+}
+
+fun MainScreen() {
+
 }
