@@ -10,10 +10,22 @@ data class Complex(val real: Double, val imag: Double) {
         return Complex(real + other.real, imag + other.imag)
     }
 
+    operator fun minus(other: Complex): Complex {
+        return Complex(real - other.real, imag - other.imag)
+    }
+
     operator fun times(other: Complex): Complex {
         val realPart = real * other.real - imag * other.imag
         val imagPart = real * other.imag + imag * other.real
         return Complex(realPart, imagPart)
+    }
+
+    operator fun div(divisor: Double): Complex {
+        return Complex(real / divisor, imag / divisor)
+    }
+
+    operator fun div(divisor: Int): Complex {
+        return Complex(real / divisor, imag / divisor)
     }
 
     fun conjugate(): Complex {
