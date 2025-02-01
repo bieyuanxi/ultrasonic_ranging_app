@@ -176,6 +176,40 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Text(text = "Add one")
                 }
+
+                Spacer(modifier = Modifier.width(20.dp))
+                // ZC
+                Row {
+                    Button(
+                        onClick = {
+                            if (isPlaying.value) {
+                                stopPlaying()
+                                isPlaying.value = false
+                            } else {
+                                val u = 1
+                                val q = 81
+                                val Nzc = 81
+                                val h_zc = Nzc / 2
+                                val zc = generateZCSequence(u, q, Nzc)
+                                val ZC = dft(zc)
+                                val ZC_hat = shiftRight(ZC, h_zc)
+
+                                val N = 960     // frame length
+                                val f_c = 19000 // carrier frequency
+                                val f_s = SAMPLE_RATE_SEND // sampling frequency
+                                val n_c = N * f_c / f_s
+                                val x = modulate(N, f_c, f_s, ZC_hat).toMutableList()
+
+                                val audioData = x.map { it.real.toFloat() }.toFloatArray()
+                                playSound1(audioData)
+                                isPlaying.value = true
+                            }
+                        }
+                    ) {
+                        Text(text = if (isPlaying.value) "停止发送ZC" else "开始发送ZC")
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                }
             }
         }
     }
@@ -198,7 +232,7 @@ class MainActivity : ComponentActivity() {
             AudioFormat.CHANNEL_OUT_MONO,      // 通道数配置，这里选择了单通道（FL）
             AudioFormat.ENCODING_PCM_16BIT
         )
-
+        assert(bufferSize != AudioTrack.ERROR_BAD_VALUE && bufferSize != AudioTrack.ERROR)
         playingThread = Thread {
             audioTrack = AudioTrack(
                 AudioManager.STREAM_MUSIC,
@@ -216,10 +250,46 @@ class MainActivity : ComponentActivity() {
         playingThread?.start()
     }
 
+    private fun playSound1(audioData: FloatArray) {
+        val audioFormat = AudioFormat.ENCODING_PCM_FLOAT
+        val channelConfig = AudioFormat.CHANNEL_OUT_MONO
+        val bufferSize = AudioTrack.getMinBufferSize(
+            SAMPLE_RATE_SEND,
+            channelConfig,      // 通道数配置，这里选择了单通道（FL）
+            audioFormat
+        )
+        assert(bufferSize != AudioTrack.ERROR_BAD_VALUE && bufferSize != AudioTrack.ERROR)
+        playingThread = Thread {
+            audioTrack = AudioTrack(
+                AudioManager.STREAM_MUSIC,
+                SAMPLE_RATE_SEND,
+                channelConfig,   // 通道数配置，这里选择了单通道（FL）
+                audioFormat,
+                bufferSize,
+                AudioTrack.MODE_STREAM
+            )
+            audioTrack?.setVolume(0.8f)
+            isPlaying = true
+            audioTrack?.play()
+            while (isPlaying) {
+                assert(audioData.size * Float.SIZE_BYTES <= bufferSize)
+                val count = audioTrack?.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
+                assert(count == audioData.size)
+            }
+
+            audioTrack?.stop()
+            audioTrack?.release()
+            audioTrack = null
+
+        }
+
+        playingThread?.start()
+    }
+
     private fun stopPlaying() {
-        audioTrack?.stop()
-        audioTrack?.release()
-        audioTrack = null
+//        audioTrack?.stop()
+//        audioTrack?.release()
+//        audioTrack = null
         isPlaying = false
         playingThread?.join()
     }

@@ -20,6 +20,10 @@ data class Complex(val real: Double, val imag: Double) {
         return Complex(realPart, imagPart)
     }
 
+    operator fun times(other: Int): Complex {
+        return Complex(real * other, imag * other)
+    }
+
     operator fun div(divisor: Double): Complex {
         return Complex(real / divisor, imag / divisor)
     }
