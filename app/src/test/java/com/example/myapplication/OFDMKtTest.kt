@@ -69,6 +69,118 @@ class OFDMKtTest {
     }
 
     @Test
-    fun demodulate() {
+    fun testDemodulate() {
+        val u = 1
+        val q = 81
+        val Nzc = 81
+        val h_zc = Nzc / 2
+        val zc = generateZCSequence(u, q, Nzc)
+        val ZC = dft(zc)
+        val ZC_hat = shiftRight(ZC, h_zc)
+
+        val N = 960     // frame length
+        val f_c = 19000 // carrier frequency
+        val f_s = 48000 // sampling frequency
+        val n_c = N * f_c / f_s
+        var x = modulate(N, f_c, f_s, ZC_hat).toMutableList()
+        // ↓ sender
+        // ~
+        // ~
+        // ~
+        // ~
+        // ↑ receiver
+//        val N_prime = 960 * 4
+        val N_prime = 960
+        val y = x
+        val ZC_hat_prime = conjugation(ZC_hat)
+        val cir = demodulate(y, ZC_hat_prime, N_prime)
+        val mag = magnitude(cir)
+
+        assert((mag[0] - 6.83437500e+00).absoluteValue < 1e-8)
+        assert((mag[1] - 6.75463369e+00).absoluteValue < 1e-8)
+        assert((mag[2] - 6.51875405e+00).absoluteValue < 1e-8)
+        assert((mag[3] - 6.13660202e+00).absoluteValue < 1e-8)
+        assert((mag[4] - 5.62407373e+00).absoluteValue < 1e-8)
+        assert((mag[5] - 5.00230592e+00).absoluteValue < 1e-8)
+        assert((mag[6] - 4.29663122e+00).absoluteValue < 1e-8)
+        assert((mag[7] - 3.53533451e+00).absoluteValue < 1e-8)
+        assert((mag[8] - 2.74827734e+00).absoluteValue < 1e-8)
+
+        println(mag)
+    }
+
+    @Test
+    fun testDemodulate1() {
+        val u = 1
+        val q = 81
+        val Nzc = 81
+        val h_zc = Nzc / 2
+        val zc = generateZCSequence(u, q, Nzc)
+        val ZC = dft(zc)
+        val ZC_hat = shiftRight(ZC, h_zc)
+
+        val N = 960     // frame length
+        val f_c = 19000 // carrier frequency
+        val f_s = 48000 // sampling frequency
+        val n_c = N * f_c / f_s
+        var x = modulate(N, f_c, f_s, ZC_hat)
+        // ↓ sender
+        // ~
+        // ~
+        x = shiftRight(x, 100)  // !!!!!!!!!!!!!!
+        // ~
+        // ~
+        // ↑ receiver
+//        val N_prime = 960 * 4
+        val N_prime = 960
+        val y = x
+        val ZC_hat_prime = conjugation(ZC_hat)
+        val cir = demodulate(y, ZC_hat_prime, N_prime)
+        val mag = magnitude(cir)
+
+        assert((mag[100] - 3.5794070683314168).absoluteValue < 1e-10)
+        assert((mag[101] - 3.5722215337350054).absoluteValue < 1e-10)
+
+
+        println(mag)
+    }
+
+    @Test
+    fun testDemodulate3() {
+        val u = 1
+        val q = 81
+        val Nzc = 81
+        val h_zc = Nzc / 2
+        val zc = generateZCSequence(u, q, Nzc)
+        val ZC = dft(zc)
+        val ZC_hat = shiftRight(ZC, h_zc)
+
+        val N = 960     // frame length
+        val f_c = 19000 // carrier frequency
+        val f_s = 48000 // sampling frequency
+        val n_c = N * f_c / f_s
+        var x = modulate(N, f_c, f_s, ZC_hat)
+        // ↓ sender
+        // ~
+        // ~
+        x = shiftRight(x, 0)    // !!!!!!!!! offset 0
+        // ~
+        // ~
+        // ↑ receiver
+        val y = x
+        val ZC_hat_prime = conjugation(ZC_hat)
+
+        val Y = dft(y)
+
+        // conjugate multiplication
+        val CFR_hat = MutableList(2 * h_zc + 1) { Complex(0.0, 0.0) }
+        for (i in 0 .. 2 * h_zc) {
+            CFR_hat[i] = ZC_hat_prime[i] * Y[i + n_c - h_zc]
+        }
+
+        CFR_hat.forEachIndexed { index, complex ->
+            assert((complex.real - Nzc).absoluteValue < 1e-10)
+            assert(complex.imag.absoluteValue < 1e-10)
+        }
     }
 }

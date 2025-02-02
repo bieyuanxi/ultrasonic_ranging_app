@@ -17,6 +17,30 @@ fun modulate(N: Int = 960, f_c: Int = 19000, f_s: Int = 48000, ZC_hat: List<Comp
 }
 
 
-fun demodulate() {
+fun demodulate(y: List<Complex>, ZC_hat_prime: List<Complex>, N_prime: Int, f_c: Int = 19000, f_s: Int = 48000): List<Complex> {
+    val N = y.size
+    val n_c = N * f_c / f_s
+    val N_zc = ZC_hat_prime.size
+    val h_zc = N_zc / 2
 
+    // perform N-point DFT
+    val Y = dft(y)
+
+    // conjugate multiplication
+    val CFR_hat = MutableList(N_zc) { Complex(0.0, 0.0) }
+    for (i in 0 .. 2 * h_zc) {
+        CFR_hat[i] = ZC_hat_prime[i] * Y[i + n_c - h_zc]
+    }
+
+    // Zero padding
+    val CFR = MutableList(N_prime) { Complex(0.0, 0.0) }
+    for (i in 0 .. h_zc) {
+        CFR[i] = CFR_hat[i + h_zc]
+    }
+    for (i in 0 until h_zc) {
+        CFR[N_prime - 1 - i] = CFR_hat[i]
+    }
+
+    // perform N'-point IDFT
+    return idft(CFR)
 }

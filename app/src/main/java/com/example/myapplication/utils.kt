@@ -16,6 +16,18 @@ fun <T> shiftRight(list: List<T>, shift: Int): List<T> {
     return shiftLeft(list, -shift)
 }
 
+fun conjugation(list: List<Complex>): List<Complex> {
+    return MutableList(list.size) { i ->
+        list[i].conjugate()
+    }
+}
+
+fun magnitude(list: List<Complex>) : List<Double> {
+    return List(list.size) { i ->
+        list[i].abs()
+    }
+}
+
 
 fun main() {
     val originalList = listOf(1, 2, 3, 4, 5)
