@@ -38,7 +38,8 @@ fun demodulate(y: List<Complex>, ZC_hat_prime: List<Complex>, N_prime: Int, f_c:
         CFR[i] = CFR_hat[i + h_zc]
     }
     for (i in 0 until h_zc) {
-        CFR[N_prime - 1 - i] = CFR_hat[i]
+//        CFR[N_prime - 1 - i] = CFR_hat[i] // 论文算法2中的代码，可能有误
+        CFR[N_prime - h_zc + i] = CFR_hat[i]    // 根据论文Proof部分推断，应该是做循环位移
     }
 
     // perform N'-point IDFT

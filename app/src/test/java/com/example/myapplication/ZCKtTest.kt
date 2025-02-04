@@ -59,6 +59,22 @@ class ZCKtTest {
         val crossCorrOne = crossCorrelation(zcSequence1, zcSequence2, 1)
         println("Cross-correlation at k = 1: ${crossCorrOne.real} + ${crossCorrOne.imag}j")
     }
+
+    @Test
+    //
+    fun test4() {
+        val u1 = 2
+        val q = 81
+        val N = 81
+        val zc = generateZCSequence(u1, q, N)
+        val ZC = dft(zc)
+//        println(ZC)
+        for (i in 0 until N) {
+//            println(ZC[i] * ZC[i].conjugate())
+            assert((ZC[i] * ZC[i].conjugate() - Complex(N.toDouble(), 0.0)).abs() < 1e-10)
+        }
+
+    }
 }
 
 

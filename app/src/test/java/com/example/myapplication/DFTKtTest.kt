@@ -1,6 +1,9 @@
 package com.example.myapplication
 
 import org.junit.Test
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 
 class DFTKtTest {
@@ -93,6 +96,34 @@ class DFTKtTest {
         val result = idft(dft(inputData.toList()))
         for (i in inputData.indices) {
             assert((inputData[i] - result[i]).abs() < 1e-10)
+        }
+    }
+
+    @Test
+    fun time_shifting_theorem() {
+        val u = 1
+        val q = 81
+        val Nzc = 81
+        val h_zc = Nzc / 2
+        val zc = generateZCSequence(u, q, Nzc)
+        val ZC = dft(zc)
+        val ZC_hat = shiftRight(ZC, h_zc)
+
+        val N = 960     // frame length
+        val f_c = 19000 // carrier frequency
+        val f_s = 48000 // sampling frequency
+
+        var x = modulate(N, f_c, f_s, ZC_hat).toMutableList()
+        val X = dft(x)
+
+        val delay = 5
+        val t: Double = delay.toDouble() / f_s // delay seconds
+
+        val y = shiftRight(x, delay)    // m = t * f_s * N' / N
+        val Y = dft(y)
+        for (i in Y.indices) {
+            val v = - 2 * PI * i * t * f_s / N
+            assert((Y[i] - X[i] * Complex(cos(v), sin(v))).abs() < 1e-10)
         }
     }
 }
