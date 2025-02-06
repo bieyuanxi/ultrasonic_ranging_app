@@ -11,8 +11,12 @@ fun dft(input: List<Complex>): List<Complex> {
     for (k in 0 until n) {
         for (i in 0 until n) {
             val angle = -2 * PI * k * i / n
-            val c = Complex(cos(angle), sin(angle))
-            output[k] = output[k] + input[i] * c
+            val real = cos(angle)
+            val imag = sin(angle)
+//            val c = Complex(cos(angle), sin(angle))
+//            output[k] = output[k] + input[i] * c
+            output[k].real += input[i].real * real - input[i].imag * imag
+            output[k].imag += input[i].imag * real + input[i].real * imag
         }
     }
     return output.toList()
@@ -26,10 +30,17 @@ fun idft(input: List<Complex>): List<Complex> {
     for (k in 0 until N) {
         for (i in 0 until N) {
             val angle = 2 * PI * k * i / N
-            val c = Complex(cos(angle), sin(angle))
-            output[k] = output[k] + input[i] * c
+            val real = cos(angle)
+            val imag = sin(angle)
+//            val c = Complex(cos(angle), sin(angle))
+//            output[k] = output[k] + input[i] * c
+
+            output[k].real += input[i].real * real - input[i].imag * imag
+            output[k].imag += input[i].imag * real + input[i].real * imag
         }
-        output[k] = output[k] / N
+//        output[k] = output[k] / N
+        output[k].real /= N
+        output[k].imag /= N
     }
     return output.toList()
 }

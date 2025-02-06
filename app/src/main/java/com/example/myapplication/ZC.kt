@@ -5,7 +5,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 // TODO：用Common Math里的Complex代替
-data class Complex(val real: Double, val imag: Double) {
+data class Complex(var real: Double, var imag: Double) {
     operator fun plus(other: Complex): Complex {
         return Complex(real + other.real, imag + other.imag)
     }

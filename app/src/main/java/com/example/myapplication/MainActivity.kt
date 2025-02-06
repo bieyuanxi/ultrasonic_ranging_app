@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
     // 接收声波相关变量
     private val SAMPLE_RATE_RECEIVE = 48000
     private val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
-    private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
+    private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
     private val BUFFER_SIZE = AudioRecord.getMinBufferSize(SAMPLE_RATE_RECEIVE, CHANNEL_CONFIG, AUDIO_FORMAT)
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
@@ -307,8 +307,19 @@ class MainActivity : ComponentActivity() {
             //                                          int[] grantResults)
             // to handle the case where the user grants the permission. See the documentation
             // for ActivityCompat#requestPermissions for more details.
+            assert(false)
             return
         }
+
+        val u = 1
+        val q = 81
+        val Nzc = 81
+        val h_zc = Nzc / 2
+        val zc = generateZCSequence(u, q, Nzc)
+        val ZC = dft(zc)
+        val ZC_hat = shiftRight(ZC, h_zc)
+        val ZC_hat_prime = conjugation(ZC_hat)
+
         audioRecord = AudioRecord(
             MediaRecorder.AudioSource.MIC,
             SAMPLE_RATE_RECEIVE,
@@ -319,25 +330,29 @@ class MainActivity : ComponentActivity() {
 
         audioRecord?.startRecording()
         isRecording = true
-
+        Log.d("buffer_size", BUFFER_SIZE.toString())
         recordingThread = Thread {
-            val file = File(Environment.getExternalStorageDirectory().absolutePath + "/recording.pcm")
+//            val file = File(Environment.getExternalStorageDirectory().absolutePath + "/recording.pcm")
             try {
-                val fos = FileOutputStream(file)
-                val buffer = ShortArray(BUFFER_SIZE)
+//                val fos = FileOutputStream(file)
+//                val buffer = ShortArray(BUFFER_SIZE)
+                val buffer = FloatArray(960)
                 var read: Int
                 while (isRecording) {
-                    read = audioRecord?.read(buffer, 0, buffer.size)?: 0
-                    if (read > 0) {
-                        val byteBuffer = ByteArray(read * 2)
-                        for (i in 0 until read) {
-                            byteBuffer[i * 2] = (buffer[i].toInt() and 0xFF).toByte()
-                            byteBuffer[i * 2 + 1] = (buffer[i].toInt() shr 8).toByte()
-                        }
-                        fos.write(byteBuffer)
-                    }
+//                    read = audioRecord?.read(buffer, 0, buffer.size)?: 0
+                    read = audioRecord?.read(buffer, 0, 960, AudioRecord.READ_BLOCKING)?: 0
+
+                    val y = buffer.map { Complex(it.toDouble(), 0.0) }
+
+                    // FIXME: GC & memory
+                    val cir = demodulate(y, ZC_hat_prime, 960)
+                    val mag = magnitude(cir)
+                    Log.d("mag", mag.toString())
+                    Log.d("max_in_mag", mag.withIndex().maxByOrNull { it.value }.toString())
+                    Log.d("debug", "BBBB")
+
                 }
-                fos.close()
+//                fos.close()
             } catch (e: IOException) {
                 e.printStackTrace()
             }
@@ -363,11 +378,3 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun listof(){
-
-}
-
-fun MainScreen() {
-
-}
