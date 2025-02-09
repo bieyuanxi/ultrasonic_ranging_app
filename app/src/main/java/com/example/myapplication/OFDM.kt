@@ -1,5 +1,7 @@
 package com.example.myapplication
 
+import android.util.Log
+
 fun modulate(N: Int = 960, f_c: Int = 19000, f_s: Int = 48000, ZC_hat: List<Complex>): List<Complex> {
     val Nzc = ZC_hat.size
     val h_zc = Nzc / 2
@@ -13,7 +15,8 @@ fun modulate(N: Int = 960, f_c: Int = 19000, f_s: Int = 48000, ZC_hat: List<Comp
         X[i] = X[N - i].conjugate()
     }
 
-    return idft(X.toList())
+//    return idft(X.toList())
+    return RustFFTWrapper.ifft(X.toList())
 }
 
 
@@ -24,7 +27,8 @@ fun demodulate(y: List<Complex>, ZC_hat_prime: List<Complex>, N_prime: Int, f_c:
     val h_zc = N_zc / 2
 
     // perform N-point DFT
-    val Y = dft(y)
+//    val Y = dft(y)
+    val Y = RustFFTWrapper.fft(y)
 
     // conjugate multiplication
     val CFR_hat = MutableList(N_zc) { Complex(0.0, 0.0) }
@@ -41,7 +45,7 @@ fun demodulate(y: List<Complex>, ZC_hat_prime: List<Complex>, N_prime: Int, f_c:
 //        CFR[N_prime - 1 - i] = CFR_hat[i] // 论文算法2中的代码，可能有误
         CFR[N_prime - h_zc + i] = CFR_hat[i]    // 根据论文Proof部分推断，应该是做循环位移
     }
-
     // perform N'-point IDFT
-    return idft(CFR)
+//    return idft(CFR)
+    return RustFFTWrapper.ifft(CFR)
 }

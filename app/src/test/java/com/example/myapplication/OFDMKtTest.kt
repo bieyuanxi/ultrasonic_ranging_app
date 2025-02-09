@@ -8,6 +8,7 @@ class OFDMKtTest {
 
     @Test
     fun testModulate() {
+        System.setProperty("jna.library.path", "native-libs");
         val u = 1
         val q = 81
         val Nzc = 81

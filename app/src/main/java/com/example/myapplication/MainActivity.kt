@@ -2,16 +2,17 @@ package com.example.myapplication
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.os.Bundle
-import android.os.Environment
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,7 +24,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,8 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import kotlin.math.sin
 
@@ -212,6 +210,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     private fun generateSound(frequencySend: Int): ShortArray {
@@ -234,6 +240,23 @@ class MainActivity : ComponentActivity() {
         )
         assert(bufferSize != AudioTrack.ERROR_BAD_VALUE && bufferSize != AudioTrack.ERROR)
         playingThread = Thread {
+//            audioTrack = AudioTrack.Builder()
+////                .setAudioAttributes(
+////                    AudioAttributes.Builder()
+////                        .setUsage(AudioAttributes.USAGE_MEDIA)
+////                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+////                        .build()
+////                )
+//                .setAudioFormat(
+//                    AudioFormat.Builder()
+//                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+//                        .setSampleRate(SAMPLE_RATE_SEND)
+////                        .setChannelMask(channelConfig)
+//                        .build()
+//                )
+//                .setBufferSizeInBytes(bufferSize)
+//                .setTransferMode(AudioTrack.MODE_STREAM)
+//                .build()
             audioTrack = AudioTrack(
                 AudioManager.STREAM_MUSIC,
                 SAMPLE_RATE_SEND,
@@ -275,6 +298,7 @@ class MainActivity : ComponentActivity() {
                 assert(audioData.size * Float.SIZE_BYTES <= bufferSize)
                 val count = audioTrack?.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
                 assert(count == audioData.size)
+                Log.d("play_sound", "write $count")
             }
 
             audioTrack?.stop()
@@ -295,22 +319,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startRecording() {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            assert(false)
-            return
-        }
-
         val u = 1
         val q = 81
         val Nzc = 81
@@ -320,6 +328,13 @@ class MainActivity : ComponentActivity() {
         val ZC_hat = shiftRight(ZC, h_zc)
         val ZC_hat_prime = conjugation(ZC_hat)
 
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
         audioRecord = AudioRecord(
             MediaRecorder.AudioSource.MIC,
             SAMPLE_RATE_RECEIVE,
@@ -341,7 +356,7 @@ class MainActivity : ComponentActivity() {
                 while (isRecording) {
 //                    read = audioRecord?.read(buffer, 0, buffer.size)?: 0
                     read = audioRecord?.read(buffer, 0, 960, AudioRecord.READ_BLOCKING)?: 0
-
+                    Log.d("buffer", buffer.toList().toString())
                     val y = buffer.map { Complex(it.toDouble(), 0.0) }
 
                     // FIXME: GC & memory
@@ -349,8 +364,6 @@ class MainActivity : ComponentActivity() {
                     val mag = magnitude(cir)
                     Log.d("mag", mag.toString())
                     Log.d("max_in_mag", mag.withIndex().maxByOrNull { it.value }.toString())
-                    Log.d("debug", "BBBB")
-
                 }
 //                fos.close()
             } catch (e: IOException) {
@@ -359,6 +372,17 @@ class MainActivity : ComponentActivity() {
         }
 
         recordingThread?.start()
+    }
+
+    // 注册权限请求回调
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // 权限已授予，执行相应操作
+        } else {
+            // 权限被拒绝，给出提示或处理逻辑
+        }
     }
 
     private fun stopRecording() {
