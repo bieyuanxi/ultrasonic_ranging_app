@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
@@ -199,7 +200,7 @@ class MainActivity : ComponentActivity() {
                                 val x = modulate(N, f_c, f_s, ZC_hat).toMutableList()
 
                                 val audioData = x.map { it.real.toFloat() }.toFloatArray()
-                                playSound1(audioData)
+                                playSound2(audioData)
                                 isPlaying.value = true
                             }
                         }
@@ -240,31 +241,31 @@ class MainActivity : ComponentActivity() {
         )
         assert(bufferSize != AudioTrack.ERROR_BAD_VALUE && bufferSize != AudioTrack.ERROR)
         playingThread = Thread {
-//            audioTrack = AudioTrack.Builder()
-////                .setAudioAttributes(
-////                    AudioAttributes.Builder()
-////                        .setUsage(AudioAttributes.USAGE_MEDIA)
-////                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-////                        .build()
-////                )
-//                .setAudioFormat(
-//                    AudioFormat.Builder()
-//                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-//                        .setSampleRate(SAMPLE_RATE_SEND)
-////                        .setChannelMask(channelConfig)
+            audioTrack = AudioTrack.Builder()
+//                .setAudioAttributes(
+//                    AudioAttributes.Builder()
+//                        .setUsage(AudioAttributes.USAGE_MEDIA)
+//                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
 //                        .build()
 //                )
-//                .setBufferSizeInBytes(bufferSize)
-//                .setTransferMode(AudioTrack.MODE_STREAM)
-//                .build()
-            audioTrack = AudioTrack(
-                AudioManager.STREAM_MUSIC,
-                SAMPLE_RATE_SEND,
-                AudioFormat.CHANNEL_OUT_MONO,   // 通道数配置，这里选择了单通道（FL）
-                AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize,
-                AudioTrack.MODE_STREAM
-            )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(SAMPLE_RATE_SEND)
+//                        .setChannelMask(channelConfig)
+                        .build()
+                )
+                .setBufferSizeInBytes(bufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
+//            audioTrack = AudioTrack(
+//                AudioManager.STREAM_MUSIC,
+//                SAMPLE_RATE_SEND,
+//                AudioFormat.CHANNEL_OUT_MONO,   // 通道数配置，这里选择了单通道（FL）
+//                AudioFormat.ENCODING_PCM_16BIT,
+//                bufferSize,
+//                AudioTrack.MODE_STREAM
+//            )
             isPlaying = true
             audioTrack?.play()
             audioTrack?.write(audioData, 0, numSamples)
@@ -310,6 +311,50 @@ class MainActivity : ComponentActivity() {
         playingThread?.start()
     }
 
+    private fun playSound2(audioData: FloatArray) {
+        // 配置 AudioTrack 参数
+        val sampleRateInHz = 48000
+        val channelConfig = AudioFormat.CHANNEL_OUT_MONO
+        val audioFormat = AudioFormat.ENCODING_PCM_FLOAT
+        val bufferSizeInBytes = AudioTrack.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
+
+        playingThread = Thread {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
+            val audioTrack = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(audioFormat)
+                        .setSampleRate(sampleRateInHz)
+                        .setChannelMask(channelConfig)
+                        .build()
+                )
+                .setBufferSizeInBytes(bufferSizeInBytes)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)    // performance mode
+                .build()
+
+            audioTrack.setVolume(0.8f)
+            // 写入音频数据
+            audioTrack.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
+
+            // 设置重复播放
+            val result = audioTrack.setLoopPoints(0, audioData.size, 2)
+            assert(result != AudioRecord.ERROR_BAD_VALUE)
+            // 开始播放
+            Log.d("playSound2", "before call play()")
+            audioTrack.play()   // time?
+            Log.d("playSound2", "after call play()")
+        }
+
+        playingThread?.start()
+    }
+
     private fun stopPlaying() {
 //        audioTrack?.stop()
 //        audioTrack?.release()
@@ -335,37 +380,63 @@ class MainActivity : ComponentActivity() {
         ) {
             return
         }
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE_RECEIVE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT,
-            BUFFER_SIZE
-        )
 
+        val bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE_RECEIVE, CHANNEL_CONFIG, AUDIO_FORMAT)
+        val audioRecord = AudioRecord.Builder()
+            .setAudioSource(MediaRecorder.AudioSource.MIC)
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+                    .setSampleRate(SAMPLE_RATE_RECEIVE)
+                    .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                    .build()
+            )
+            .setBufferSizeInBytes(bufferSize)
+            .build()
+
+        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        val isSupportMicNearUltrasound =
+            audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_MIC_NEAR_ULTRASOUND)
+        val isSupportSpeakerNearUltrasound =
+            audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_SPEAKER_NEAR_ULTRASOUND)
+        Log.d("SupportCheck", "MicUltrasound: ${isSupportMicNearUltrasound}, SpeakerUltrasound: $isSupportSpeakerNearUltrasound")
+
+        val pOutputSampleRate =
+            audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
+        val  pOutputFramesPerBuffer =
+            audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
+        Log.d("SupportCheck", "pOutputSampleRate: $pOutputSampleRate, pOutputFramesPerBuffer: $pOutputFramesPerBuffer")
+
+        val hasLowLatencyFeature: Boolean =
+            packageManager.hasSystemFeature(PackageManager.FEATURE_AUDIO_LOW_LATENCY)
+
+        val hasProFeature: Boolean =
+            packageManager.hasSystemFeature(PackageManager.FEATURE_AUDIO_PRO)
+
+        Log.d("hasLowLatencyFeature", "$hasLowLatencyFeature")
+        Log.d("hasProFeature", "$hasProFeature")
+
+
+        Log.d("preheating", "")
         audioRecord?.startRecording()
         isRecording = true
-        Log.d("buffer_size", BUFFER_SIZE.toString())
+        Log.d("preheating done", "")
         recordingThread = Thread {
-//            val file = File(Environment.getExternalStorageDirectory().absolutePath + "/recording.pcm")
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
             try {
-//                val fos = FileOutputStream(file)
-//                val buffer = ShortArray(BUFFER_SIZE)
                 val buffer = FloatArray(960)
                 var read: Int
                 while (isRecording) {
-//                    read = audioRecord?.read(buffer, 0, buffer.size)?: 0
                     read = audioRecord?.read(buffer, 0, 960, AudioRecord.READ_BLOCKING)?: 0
-                    Log.d("buffer", buffer.toList().toString())
+//                    Log.d("buffer", buffer.toList().toString())
+//                    Log.d("audioRecord", "read len: $read")
                     val y = buffer.map { Complex(it.toDouble(), 0.0) }
-
                     // FIXME: GC & memory
                     val cir = demodulate(y, ZC_hat_prime, 960)
                     val mag = magnitude(cir)
-                    Log.d("mag", mag.toString())
+//                    Log.d("mag", mag.toString())
                     Log.d("max_in_mag", mag.withIndex().maxByOrNull { it.value }.toString())
                 }
-//                fos.close()
             } catch (e: IOException) {
                 e.printStackTrace()
             }
