@@ -2,6 +2,7 @@ package com.example.myapplication
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
@@ -14,6 +15,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -210,7 +213,14 @@ class MainActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.width(20.dp))
                 }
             }
+            WIFIP2PScreen { message ->
+                val intent = Intent(this, WifiP2P::class.java)
+                intent.putExtra("message", message)
+                startActivity(intent)
+            }
         }
+
+        Log.d("FEATURE_WIFI_AWARE", "${packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)}")
 
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -473,3 +483,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Composable
+fun WIFIP2PScreen(onButtonClick: (String) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Button(onClick = { onButtonClick("来自第一个 Activity 的消息") }) {
+            Text(text = "跳转到WIFIP2PScreen")
+        }
+    }
+}
