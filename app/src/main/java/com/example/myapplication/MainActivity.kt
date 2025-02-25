@@ -32,13 +32,25 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import java.io.IOException
 import kotlin.math.sin
+
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -48,7 +60,7 @@ class MainActivity : ComponentActivity() {
     private val AMPLITUDE_SEND = 1000  // 振幅
     private var FREQUENCY_SEND = 20000
     private var audioTrack: AudioTrack? = null
-    private var isPlaying = false
+    private var isPlaying = mutableStateOf(false)
     private var playingThread: Thread? = null
 
     // 接收声波相关变量
@@ -61,10 +73,11 @@ class MainActivity : ComponentActivity() {
     private var recordingThread: Thread? = null
 
     private val SLIDE_RATE = 250
+    var lineDataEntries = mutableStateListOf<Entry>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val isPlaying = remember { mutableStateOf(false) }
             val isRecordingState = remember { mutableStateOf(false) }
             val inputValue = remember { mutableStateOf(FREQUENCY_SEND.toString()) }
             val sliderValue = remember { mutableFloatStateOf(inputValue.value.toFloat() / SLIDE_RATE) }
@@ -212,15 +225,62 @@ class MainActivity : ComponentActivity() {
                     }
                     Spacer(modifier = Modifier.width(20.dp))
                 }
+//                LineChartWithMPAndroidChart()
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { context ->
+                        val lineChart = LineChart(context)
+                        // 初始化数据
+                        val dataSet = LineDataSet(lineDataEntries, "数据")
+                        dataSet.color = android.graphics.Color.BLUE
+                        dataSet.valueTextColor = android.graphics.Color.RED
+
+                        val lineData = LineData(dataSet)
+                        lineChart.data = lineData
+                        lineChart.invalidate()
+                        lineChart
+                    },
+                    update = { lineChart ->
+                        // 数据更新时，更新图表
+                        val dataSet = lineChart.data.getDataSetByIndex(0) as LineDataSet
+                        dataSet.values = lineDataEntries
+                        lineChart.data.notifyDataChanged()
+                        lineChart.notifyDataSetChanged()
+                        lineChart.invalidate()
+                    }
+                )
             }
             WIFIP2PScreen { message ->
                 val intent = Intent(this, WifiP2P::class.java)
                 intent.putExtra("message", message)
                 startActivity(intent)
             }
+
         }
 
         Log.d("FEATURE_WIFI_AWARE", "${packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)}")
+
+        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        val isSupportMicNearUltrasound =
+            audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_MIC_NEAR_ULTRASOUND)
+        val isSupportSpeakerNearUltrasound =
+            audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_SPEAKER_NEAR_ULTRASOUND)
+        Log.d("SupportCheck", "MicUltrasound: ${isSupportMicNearUltrasound}, SpeakerUltrasound: $isSupportSpeakerNearUltrasound")
+
+        val pOutputSampleRate =
+            audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
+        val  pOutputFramesPerBuffer =
+            audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
+        Log.d("SupportCheck", "pOutputSampleRate: $pOutputSampleRate, pOutputFramesPerBuffer: $pOutputFramesPerBuffer")
+
+        val hasLowLatencyFeature: Boolean =
+            packageManager.hasSystemFeature(PackageManager.FEATURE_AUDIO_LOW_LATENCY)
+
+        val hasProFeature: Boolean =
+            packageManager.hasSystemFeature(PackageManager.FEATURE_AUDIO_PRO)
+
+        Log.d("hasLowLatencyFeature", "$hasLowLatencyFeature")
+        Log.d("hasProFeature", "$hasProFeature")
 
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -243,6 +303,7 @@ class MainActivity : ComponentActivity() {
         return audioData
     }
 
+    @Deprecated("use playSound2")
     private fun playSound(audioData: ShortArray, numSamples: Int) {
         val bufferSize = AudioTrack.getMinBufferSize(
             SAMPLE_RATE_SEND,
@@ -276,46 +337,9 @@ class MainActivity : ComponentActivity() {
 //                bufferSize,
 //                AudioTrack.MODE_STREAM
 //            )
-            isPlaying = true
+            isPlaying.value = true
             audioTrack?.play()
             audioTrack?.write(audioData, 0, numSamples)
-        }
-
-        playingThread?.start()
-    }
-
-    private fun playSound1(audioData: FloatArray) {
-        val audioFormat = AudioFormat.ENCODING_PCM_FLOAT
-        val channelConfig = AudioFormat.CHANNEL_OUT_MONO
-        val bufferSize = AudioTrack.getMinBufferSize(
-            SAMPLE_RATE_SEND,
-            channelConfig,      // 通道数配置，这里选择了单通道（FL）
-            audioFormat
-        )
-        assert(bufferSize != AudioTrack.ERROR_BAD_VALUE && bufferSize != AudioTrack.ERROR)
-        playingThread = Thread {
-            audioTrack = AudioTrack(
-                AudioManager.STREAM_MUSIC,
-                SAMPLE_RATE_SEND,
-                channelConfig,   // 通道数配置，这里选择了单通道（FL）
-                audioFormat,
-                bufferSize,
-                AudioTrack.MODE_STREAM
-            )
-            audioTrack?.setVolume(0.8f)
-            isPlaying = true
-            audioTrack?.play()
-            while (isPlaying) {
-                assert(audioData.size * Float.SIZE_BYTES <= bufferSize)
-                val count = audioTrack?.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
-                assert(count == audioData.size)
-                Log.d("play_sound", "write $count")
-            }
-
-            audioTrack?.stop()
-            audioTrack?.release()
-            audioTrack = null
-
         }
 
         playingThread?.start()
@@ -354,12 +378,26 @@ class MainActivity : ComponentActivity() {
             audioTrack.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
 
             // 设置重复播放
-            val result = audioTrack.setLoopPoints(0, audioData.size, 2)
+            val result = audioTrack.setLoopPoints(0, audioData.size, -1)
             assert(result != AudioRecord.ERROR_BAD_VALUE)
             // 开始播放
             Log.d("playSound2", "before call play()")
             audioTrack.play()   // time?
             Log.d("playSound2", "after call play()")
+            isPlaying.value = true
+            // 循环检查是否需要停止播放
+            while (isPlaying.value) {
+                // 可以在这里添加一些延迟，避免 CPU 占用过高
+                try {
+                    Thread.sleep(100)
+                } catch (e: InterruptedException) {
+                    e.printStackTrace()
+                }
+            }
+
+            // 停止播放并释放资源
+            audioTrack.stop()
+            audioTrack.release()
         }
 
         playingThread?.start()
@@ -369,7 +407,7 @@ class MainActivity : ComponentActivity() {
 //        audioTrack?.stop()
 //        audioTrack?.release()
 //        audioTrack = null
-        isPlaying = false
+        isPlaying.value = false
         playingThread?.join()
     }
 
@@ -404,29 +442,7 @@ class MainActivity : ComponentActivity() {
             .setBufferSizeInBytes(bufferSize)
             .build()
 
-        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        val isSupportMicNearUltrasound =
-            audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_MIC_NEAR_ULTRASOUND)
-        val isSupportSpeakerNearUltrasound =
-            audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_SPEAKER_NEAR_ULTRASOUND)
-        Log.d("SupportCheck", "MicUltrasound: ${isSupportMicNearUltrasound}, SpeakerUltrasound: $isSupportSpeakerNearUltrasound")
-
-        val pOutputSampleRate =
-            audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
-        val  pOutputFramesPerBuffer =
-            audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
-        Log.d("SupportCheck", "pOutputSampleRate: $pOutputSampleRate, pOutputFramesPerBuffer: $pOutputFramesPerBuffer")
-
-        val hasLowLatencyFeature: Boolean =
-            packageManager.hasSystemFeature(PackageManager.FEATURE_AUDIO_LOW_LATENCY)
-
-        val hasProFeature: Boolean =
-            packageManager.hasSystemFeature(PackageManager.FEATURE_AUDIO_PRO)
-
-        Log.d("hasLowLatencyFeature", "$hasLowLatencyFeature")
-        Log.d("hasProFeature", "$hasProFeature")
-
-
+        Log.d("bufferSize", "$bufferSize")
         Log.d("preheating", "")
         audioRecord?.startRecording()
         isRecording = true
@@ -443,9 +459,21 @@ class MainActivity : ComponentActivity() {
                     val y = buffer.map { Complex(it.toDouble(), 0.0) }
                     // FIXME: GC & memory
                     val cir = demodulate(y, ZC_hat_prime, 960)
+//                    Log.d("cir", "$cir")
                     val mag = magnitude(cir)
 //                    Log.d("mag", mag.toString())
-                    Log.d("max_in_mag", mag.withIndex().maxByOrNull { it.value }.toString())
+//                    Log.d("max_in_mag", mag.withIndex().maxByOrNull { it.value }.toString())
+
+//                    lineDataEntries.clear()
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        withContext(Dispatchers.Main) {
+                            lineDataEntries = lineDataEntries.apply {
+                                clear()
+                                addAll(mag.mapIndexed { index, d -> Entry(index.toFloat(), d.toFloat()) })
+                            }
+                        }
+                    }
                 }
             } catch (e: IOException) {
                 e.printStackTrace()

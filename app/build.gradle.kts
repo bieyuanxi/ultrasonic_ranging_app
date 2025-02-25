@@ -71,4 +71,7 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.12.1@aar")
 
     testImplementation("net.java.dev.jna:jna-platform:5.12.1")
+
+//    implementation("com.anysoftchart:anychart-android:1.1.1")
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 }

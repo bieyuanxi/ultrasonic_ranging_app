@@ -39,6 +39,10 @@ data class Complex(var real: Double, var imag: Double) {
     fun abs(): Double {
         return kotlin.math.sqrt(real * real + imag * imag)
     }
+
+    override fun toString(): String {
+        return "($real, $imag)"
+    }
 }
 
 

@@ -9,6 +9,7 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        maven(url = "https://jitpack.io")
     }
 }
 dependencyResolutionManagement {
@@ -17,6 +18,7 @@ dependencyResolutionManagement {
         maven("https://maven.aliyun.com/repository/public/")
         google()
         mavenCentral()
+        maven(url = "https://jitpack.io")
     }
 }
 
