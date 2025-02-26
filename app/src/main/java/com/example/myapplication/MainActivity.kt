@@ -38,31 +38,26 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
+    private val SAMPLE_RATE = 48000
+    private val FRAME_LEN = 960
 
     // 发送声波相关变量
-    private val SAMPLE_RATE_SEND = 48000
-    private val DURATION_SEND = 2
-    private val AMPLITUDE_SEND = 1000  // 振幅
-    private var FREQUENCY_SEND = 20000
     private var audioTrack: AudioTrack? = null
     private var isPlayingState = mutableStateOf(false)
     private var playingThread: Thread? = null
 
     // 接收声波相关变量
-    private val SAMPLE_RATE_RECEIVE = 48000
-    private val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
-    private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
+
     private var audioRecord: AudioRecord? = null
     private var isRecordingState = mutableStateOf(false)
     private var recordingThread: Thread? = null
 
     private var lineDataEntries = mutableStateListOf<Entry>()
-
-    private val mainActivity = this
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,14 +82,14 @@ class MainActivity : ComponentActivity() {
                                 val ZC = dft(zc)
                                 val ZC_hat = shiftRight(ZC, h_zc)
 
-                                val N = 960     // frame length
+                                val N = FRAME_LEN     // frame length
                                 val f_c = 19000 // carrier frequency
-                                val f_s = SAMPLE_RATE_SEND // sampling frequency
+                                val f_s = this@MainActivity.SAMPLE_RATE // sampling frequency
                                 val n_c = N * f_c / f_s
                                 val x = modulate(N, f_c, f_s, ZC_hat).toMutableList()
 
                                 val audioData = x.map { it.real.toFloat() }.toFloatArray()
-                                playSound2(audioData)
+                                playSound(audioData)
                                 isPlayingState.value = true
                             }
                         }
@@ -116,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 WIFIP2PScreen { message ->
-                    val intent = Intent(mainActivity, WifiP2P::class.java)
+                    val intent = Intent(this@MainActivity, WifiP2P::class.java)
                     intent.putExtra("message", message)
                     startActivity(intent)
                 }
@@ -183,70 +178,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun generateSound(frequencySend: Int): ShortArray {
-        val numSamples = SAMPLE_RATE_SEND * DURATION_SEND
-        val audioData = ShortArray(numSamples)
-
-        for (i in 0 until numSamples) {
-            val angle = i * (2 * Math.PI * frequencySend / SAMPLE_RATE_SEND)
-            audioData[i] = (AMPLITUDE_SEND * sin(angle)).toInt().toShort()
-        }
-
-        return audioData
-    }
-
-    @Deprecated("use playSound2")
-    private fun playSound(audioData: ShortArray, numSamples: Int) {
-        val bufferSize = AudioTrack.getMinBufferSize(
-            SAMPLE_RATE_SEND,
-            AudioFormat.CHANNEL_OUT_MONO,      // 通道数配置，这里选择了单通道（FL）
-            AudioFormat.ENCODING_PCM_16BIT
-        )
-        assert(bufferSize != AudioTrack.ERROR_BAD_VALUE && bufferSize != AudioTrack.ERROR)
-        playingThread = Thread {
-            audioTrack = AudioTrack.Builder()
-//                .setAudioAttributes(
-//                    AudioAttributes.Builder()
-//                        .setUsage(AudioAttributes.USAGE_MEDIA)
-//                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-//                        .build()
-//                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setSampleRate(SAMPLE_RATE_SEND)
-//                        .setChannelMask(channelConfig)
-                        .build()
-                )
-                .setBufferSizeInBytes(bufferSize)
-                .setTransferMode(AudioTrack.MODE_STREAM)
-                .build()
-//            audioTrack = AudioTrack(
-//                AudioManager.STREAM_MUSIC,
-//                SAMPLE_RATE_SEND,
-//                AudioFormat.CHANNEL_OUT_MONO,   // 通道数配置，这里选择了单通道（FL）
-//                AudioFormat.ENCODING_PCM_16BIT,
-//                bufferSize,
-//                AudioTrack.MODE_STREAM
-//            )
-            isPlayingState.value = true
-            audioTrack?.play()
-            audioTrack?.write(audioData, 0, numSamples)
-        }
-
-        playingThread?.start()
-    }
-
-    private fun playSound2(audioData: FloatArray) {
+    private fun playSound(audioData: FloatArray, loopCount: Int = -1) {
         // 配置 AudioTrack 参数
-        val sampleRateInHz = 48000
         val channelConfig = AudioFormat.CHANNEL_OUT_MONO
         val audioFormat = AudioFormat.ENCODING_PCM_FLOAT
-        val bufferSizeInBytes = AudioTrack.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
+        val bufferSizeInBytes = AudioTrack.getMinBufferSize(SAMPLE_RATE, channelConfig, audioFormat)
 
         playingThread = Thread {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
-            val audioTrack = AudioTrack.Builder()
+            audioTrack = AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -256,7 +196,7 @@ class MainActivity : ComponentActivity() {
                 .setAudioFormat(
                     AudioFormat.Builder()
                         .setEncoding(audioFormat)
-                        .setSampleRate(sampleRateInHz)
+                        .setSampleRate(SAMPLE_RATE)
                         .setChannelMask(channelConfig)
                         .build()
                 )
@@ -265,40 +205,38 @@ class MainActivity : ComponentActivity() {
                 .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)    // performance mode
                 .build()
 
-            audioTrack.setVolume(0.8f)
+            audioTrack?.setVolume(0.8f)
             // 写入音频数据
-            audioTrack.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
+            // In static buffer mode, copies the data to the buffer starting at offset 0, and the write mode is ignored.
+            // Note that the actual playback of this data might occur after this function returns.
+            audioTrack?.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
 
-            // 设置重复播放
-            val result = audioTrack.setLoopPoints(0, audioData.size, -1)
-            assert(result != AudioRecord.ERROR_BAD_VALUE)
+            // 设置重复播放, loopCount = 重复播放次数（例如loopCount=k，则播放1+k次）
+            val result = audioTrack?.setLoopPoints(0, audioData.size, loopCount)
+            assert(result != AudioTrack.ERROR_BAD_VALUE)
             // 开始播放
-            Log.d("playSound2", "before call play()")
-            audioTrack.play()   // time?
-            Log.d("playSound2", "after call play()")
+            Log.d("playSound", "before call play()")
+            audioTrack?.play()   // time?
+            Log.d("playSound", "after call play()")
             isPlayingState.value = true
-            // 循环检查是否需要停止播放
-            while (isPlayingState.value) {
-                // 添加一些延迟，避免 CPU 占用过高
-                try {
-                    Thread.sleep(100)
-                } catch (e: InterruptedException) {
-                    e.printStackTrace()
+
+            if(loopCount >= 0) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val playTimeInMs = (loopCount + 1) * 1000 * audioData.size / SAMPLE_RATE
+                    Log.d("playSound", "will stop playing after ${playTimeInMs}ms")
+                    delay(playTimeInMs.toLong())
+                    stopPlaying()
                 }
             }
-
-            // 停止播放并释放资源
-            audioTrack.stop()
-            audioTrack.release()
         }
 
         playingThread?.start()
     }
 
     private fun stopPlaying() {
-//        audioTrack?.stop()
-//        audioTrack?.release()
-//        audioTrack = null
+        audioTrack?.stop()
+        audioTrack?.release()
+        audioTrack = null
         isPlayingState.value = false
         playingThread?.join()
     }
@@ -321,14 +259,16 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE_RECEIVE, CHANNEL_CONFIG, AUDIO_FORMAT)
-        val audioRecord = AudioRecord.Builder()
+        val channelConfig = AudioFormat.CHANNEL_IN_MONO
+        val audioFormat = AudioFormat.ENCODING_PCM_FLOAT
+        val bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, channelConfig, audioFormat)
+        audioRecord = AudioRecord.Builder()
             .setAudioSource(MediaRecorder.AudioSource.MIC)
             .setAudioFormat(
                 AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
-                    .setSampleRate(SAMPLE_RATE_RECEIVE)
-                    .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                    .setEncoding(audioFormat)
+                    .setSampleRate(SAMPLE_RATE)
+                    .setChannelMask(channelConfig)
                     .build()
             )
             .setBufferSizeInBytes(bufferSize)
@@ -342,15 +282,15 @@ class MainActivity : ComponentActivity() {
         recordingThread = Thread {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
             try {
-                val buffer = FloatArray(960)
+                val buffer = FloatArray(FRAME_LEN)
                 var read: Int
                 while (isRecordingState.value) {
-                    read = audioRecord?.read(buffer, 0, 960, AudioRecord.READ_BLOCKING)?: 0
+                    read = audioRecord?.read(buffer, 0, FRAME_LEN, AudioRecord.READ_BLOCKING)?: 0
 //                    Log.d("buffer", buffer.toList().toString())
 //                    Log.d("audioRecord", "read len: $read")
                     val y = buffer.map { Complex(it.toDouble(), 0.0) }
                     // FIXME: GC & memory
-                    val cir = demodulate(y, ZC_hat_prime, 960)
+                    val cir = demodulate(y, ZC_hat_prime, FRAME_LEN)
 //                    Log.d("cir", "$cir")
                     val mag = magnitude(cir)
 //                    Log.d("mag", mag.toString())
@@ -390,6 +330,7 @@ class MainActivity : ComponentActivity() {
         audioRecord = null
         isRecordingState.value = false
         recordingThread?.join()
+
     }
 
     override fun onDestroy() {
