@@ -1,7 +1,6 @@
 package com.example.myapplication
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
@@ -15,28 +14,18 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
@@ -60,29 +49,24 @@ class MainActivity : ComponentActivity() {
     private val AMPLITUDE_SEND = 1000  // 振幅
     private var FREQUENCY_SEND = 20000
     private var audioTrack: AudioTrack? = null
-    private var isPlaying = mutableStateOf(false)
+    private var isPlayingState = mutableStateOf(false)
     private var playingThread: Thread? = null
 
     // 接收声波相关变量
     private val SAMPLE_RATE_RECEIVE = 48000
     private val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
     private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
-    private val BUFFER_SIZE = AudioRecord.getMinBufferSize(SAMPLE_RATE_RECEIVE, CHANNEL_CONFIG, AUDIO_FORMAT)
     private var audioRecord: AudioRecord? = null
-    private var isRecording = false
+    private var isRecordingState = mutableStateOf(false)
     private var recordingThread: Thread? = null
 
-    private val SLIDE_RATE = 250
-    var lineDataEntries = mutableStateListOf<Entry>()
+    private var lineDataEntries = mutableStateListOf<Entry>()
+
+    private val mainActivity = this
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val isRecordingState = remember { mutableStateOf(false) }
-            val inputValue = remember { mutableStateOf(FREQUENCY_SEND.toString()) }
-            val sliderValue = remember { mutableFloatStateOf(inputValue.value.toFloat() / SLIDE_RATE) }
-
-            val soundList = remember { mutableStateListOf<Int>() }
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -91,115 +75,9 @@ class MainActivity : ComponentActivity() {
                 Row {
                     Button(
                         onClick = {
-                            if (isPlaying.value) {
+                            if (isPlayingState.value) {
                                 stopPlaying()
-                                isPlaying.value = false
-                            } else {
-                                val numSamples = SAMPLE_RATE_SEND * DURATION_SEND
-                                val audioData = generateSound(inputValue.value.toInt())
-                                soundList.forEach { value ->
-                                    val samples = generateSound(value)
-                                    samples.forEachIndexed { index, sh ->
-                                        if(sh + audioData[index] > Short.MAX_VALUE) {
-                                            Log.e("amplitude", "amplitude overflow!")
-                                        }
-                                        audioData[index] = (sh + audioData[index]).toShort()
-                                    }
-
-                                }
-
-                                playSound(audioData, numSamples)
-                                isPlaying.value = true
-                            }
-                        }
-                    ) {
-                        Text(text = if (isPlaying.value) "停止发送" else "开始发送")
-                    }
-                    Spacer(modifier = Modifier.width(20.dp))
-                    Button(
-                        onClick = {
-                            if (isRecordingState.value) {
-                                stopRecording()
-                                isRecordingState.value = false
-                            } else {
-                                startRecording()
-                                isRecordingState.value = true
-                            }
-                        }
-                    ) {
-                        Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
-                    }
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row{
-                    Text(text = "sound1")
-                    Slider(
-                        modifier = Modifier.width(200.dp),
-                        value = sliderValue.floatValue,
-                        onValueChange = { newSliderValue ->
-                            sliderValue.floatValue = newSliderValue
-                            inputValue.value = (newSliderValue * SLIDE_RATE).toInt().toString()
-
-                        },
-                        valueRange = 0f..100f
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    OutlinedTextField(
-                        modifier = Modifier.width(80.dp),
-                        value = inputValue.value,
-                        onValueChange = { newInput ->
-                            inputValue.value = newInput
-                            val parsedValue = newInput.toFloat() / SLIDE_RATE
-                            if (parsedValue in 0f..100f) {
-                                sliderValue.floatValue = parsedValue
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                }
-                soundList.forEachIndexed { index, value ->
-                    Row{
-                        Text(text = "sound1")
-                        Slider(
-                            modifier = Modifier.width(200.dp),
-                            value = value.toFloat(),
-                            onValueChange = { newSliderValue ->
-                                soundList[index] = newSliderValue.toInt()
-                            },
-                            valueRange = 0f..21000f
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        OutlinedTextField(
-                            modifier = Modifier.width(80.dp),
-                            value = value.toString(),
-                            onValueChange = { newInput ->
-//                                inputValue.value = newInput
-                                val parsedValue = if (newInput.isNotEmpty()) newInput.toInt() else 0
-                                if (parsedValue in 0..21000) {
-                                    soundList[index] = parsedValue
-                                }
-
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                        )
-                    }}
-                Button(
-                    onClick = {
-                        soundList.add(1000)
-                    }
-                ) {
-                    Text(text = "Add one")
-                }
-
-                Spacer(modifier = Modifier.width(20.dp))
-                // ZC
-                Row {
-                    Button(
-                        onClick = {
-                            if (isPlaying.value) {
-                                stopPlaying()
-                                isPlaying.value = false
+                                isPlayingState.value = false
                             } else {
                                 val u = 1
                                 val q = 81
@@ -217,15 +95,33 @@ class MainActivity : ComponentActivity() {
 
                                 val audioData = x.map { it.real.toFloat() }.toFloatArray()
                                 playSound2(audioData)
-                                isPlaying.value = true
+                                isPlayingState.value = true
                             }
                         }
                     ) {
-                        Text(text = if (isPlaying.value) "停止发送ZC" else "开始发送ZC")
+                        Text(text = if (isPlayingState.value) "停止全带宽" else "发送全带宽")
                     }
                     Spacer(modifier = Modifier.width(20.dp))
+                    Button(
+                        onClick = {
+                            if (isRecordingState.value) {
+                                stopRecording()
+                            } else {
+                                startRecording()
+                            }
+                        }
+                    ) {
+                        Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
+                    }
                 }
-//                LineChartWithMPAndroidChart()
+
+                WIFIP2PScreen { message ->
+                    val intent = Intent(mainActivity, WifiP2P::class.java)
+                    intent.putExtra("message", message)
+                    startActivity(intent)
+                }
+                Spacer(modifier = Modifier.width(20.dp))
+
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { context ->
@@ -250,11 +146,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
-            WIFIP2PScreen { message ->
-                val intent = Intent(this, WifiP2P::class.java)
-                intent.putExtra("message", message)
-                startActivity(intent)
-            }
+
 
         }
 
@@ -337,7 +229,7 @@ class MainActivity : ComponentActivity() {
 //                bufferSize,
 //                AudioTrack.MODE_STREAM
 //            )
-            isPlaying.value = true
+            isPlayingState.value = true
             audioTrack?.play()
             audioTrack?.write(audioData, 0, numSamples)
         }
@@ -384,10 +276,10 @@ class MainActivity : ComponentActivity() {
             Log.d("playSound2", "before call play()")
             audioTrack.play()   // time?
             Log.d("playSound2", "after call play()")
-            isPlaying.value = true
+            isPlayingState.value = true
             // 循环检查是否需要停止播放
-            while (isPlaying.value) {
-                // 可以在这里添加一些延迟，避免 CPU 占用过高
+            while (isPlayingState.value) {
+                // 添加一些延迟，避免 CPU 占用过高
                 try {
                     Thread.sleep(100)
                 } catch (e: InterruptedException) {
@@ -407,7 +299,7 @@ class MainActivity : ComponentActivity() {
 //        audioTrack?.stop()
 //        audioTrack?.release()
 //        audioTrack = null
-        isPlaying.value = false
+        isPlayingState.value = false
         playingThread?.join()
     }
 
@@ -445,14 +337,14 @@ class MainActivity : ComponentActivity() {
         Log.d("bufferSize", "$bufferSize")
         Log.d("preheating", "")
         audioRecord?.startRecording()
-        isRecording = true
+        isRecordingState.value = true
         Log.d("preheating done", "")
         recordingThread = Thread {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
             try {
                 val buffer = FloatArray(960)
                 var read: Int
-                while (isRecording) {
+                while (isRecordingState.value) {
                     read = audioRecord?.read(buffer, 0, 960, AudioRecord.READ_BLOCKING)?: 0
 //                    Log.d("buffer", buffer.toList().toString())
 //                    Log.d("audioRecord", "read len: $read")
@@ -463,8 +355,6 @@ class MainActivity : ComponentActivity() {
                     val mag = magnitude(cir)
 //                    Log.d("mag", mag.toString())
 //                    Log.d("max_in_mag", mag.withIndex().maxByOrNull { it.value }.toString())
-
-//                    lineDataEntries.clear()
 
                     CoroutineScope(Dispatchers.IO).launch {
                         withContext(Dispatchers.Main) {
@@ -498,14 +388,14 @@ class MainActivity : ComponentActivity() {
         audioRecord?.stop()
         audioRecord?.release()
         audioRecord = null
-        isRecording = false
+        isRecordingState.value = false
         recordingThread?.join()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         stopPlaying()
-        if (isRecording) {
+        if (isRecordingState.value) {
             stopRecording()
         }
     }
@@ -514,9 +404,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun WIFIP2PScreen(onButtonClick: (String) -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Button(onClick = { onButtonClick("来自第一个 Activity 的消息") }) {
             Text(text = "跳转到WIFIP2PScreen")
