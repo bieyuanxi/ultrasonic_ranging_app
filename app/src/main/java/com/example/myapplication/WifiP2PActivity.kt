@@ -71,11 +71,11 @@ class WifiP2P : ComponentActivity() {
                 // 在调用 discoverPeers() 时广播。如果您在应用中处理此 intent，则通常需要调用 requestPeers() 以获取对等设备的更新列表。
                 WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
                     Log.d("PEERS_CHANGED", "")
-//                    manager?.requestPeers(channel) { peerList ->
-//                        Log.d("WifiP2pDeviceList", "$peerList")
-//                        peers.clear()
-//                        peers.addAll(peerList.deviceList)
-//                    }
+                    manager?.requestPeers(channel) { peerList ->
+                        Log.d("WifiP2pDeviceList", "$peerList")
+                        peers.clear()
+                        peers.addAll(peerList.deviceList)
+                    }
                 }
                 WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {  // 当设备的 WLAN 连接状态更改时广播
                     // 处理连接变化
