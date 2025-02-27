@@ -284,7 +284,7 @@ class MainActivity : ComponentActivity() {
             try {
                 val buffer = FloatArray(FRAME_LEN)
                 var read: Int
-                while (isRecordingState.value) {
+                while (!Thread.currentThread().isInterrupted) {
                     read = audioRecord?.read(buffer, 0, FRAME_LEN, AudioRecord.READ_BLOCKING)?: 0
 //                    Log.d("buffer", buffer.toList().toString())
 //                    Log.d("audioRecord", "read len: $read")
@@ -325,12 +325,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun stopRecording() {
+        recordingThread?.interrupt()
+        recordingThread?.join()
         audioRecord?.stop()
         audioRecord?.release()
         audioRecord = null
         isRecordingState.value = false
-        recordingThread?.join()
-
     }
 
     override fun onDestroy() {

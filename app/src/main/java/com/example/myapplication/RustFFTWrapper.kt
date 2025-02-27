@@ -22,6 +22,8 @@ object RustFFTWrapper {
             output[i].imag = outputPtr.getFloat(i * 8L + 4).toDouble()
 
         }
+        inputPtr.close()
+        outputPtr.close()
         return output
     }
 
