@@ -59,6 +59,13 @@ class MainActivity : ComponentActivity() {
 
     private var lineDataEntries = mutableStateListOf<Entry>()
 
+    private val m = mutableStateOf(0)
+    private val phi = mutableStateOf(0.0)
+
+
+    private val oddDiscreteImpulseTrain =  discreteImpulseTrain(81, true)
+    private val evenDiscreteImpulseTrain =  discreteImpulseTrain(81, false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -99,6 +106,68 @@ class MainActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.width(20.dp))
                     Button(
                         onClick = {
+                            if (isPlayingState.value) {
+                                stopPlaying()
+                                isPlayingState.value = false
+                            } else {
+                                val u = 1
+                                val q = 81
+                                val Nzc = 81
+                                val h_zc = Nzc / 2
+                                val zc = generateZCSequence(u, q, Nzc)
+                                val ZC = dft(zc)
+                                val ZC_hat = shiftRight(ZC, h_zc)
+
+                                val N = FRAME_LEN     // frame length
+                                val f_c = 19000 // carrier frequency
+                                val f_s = this@MainActivity.SAMPLE_RATE // sampling frequency
+                                val n_c = N * f_c / f_s
+                                val odd = false
+                                val x = modulate(ZC_hat, N, f_c, f_s, discreteImpulseTrain(Nzc, odd)).toMutableList()
+
+                                val audioData = x.map { it.real.toFloat() }.toFloatArray()
+                                playSound(audioData)
+                                isPlayingState.value = true
+                            }
+                        }
+                    ) {
+                        Text(text = if (isPlayingState.value) "停止even" else "发送even")
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                    Button(
+                        onClick = {
+                            if (isPlayingState.value) {
+                                stopPlaying()
+                                isPlayingState.value = false
+                            } else {
+                                val u = 1
+                                val q = 81
+                                val Nzc = 81
+                                val h_zc = Nzc / 2
+                                val zc = generateZCSequence(u, q, Nzc)
+                                val ZC = dft(zc)
+                                val ZC_hat = shiftRight(ZC, h_zc)
+
+                                val N = FRAME_LEN     // frame length
+                                val f_c = 19000 // carrier frequency
+                                val f_s = this@MainActivity.SAMPLE_RATE // sampling frequency
+                                val n_c = N * f_c / f_s
+                                val odd = true
+                                val x = modulate(ZC_hat, N, f_c, f_s, discreteImpulseTrain(Nzc, odd)).toMutableList()
+
+                                val audioData = x.map { it.real.toFloat() }.toFloatArray()
+                                playSound(audioData)
+                                isPlayingState.value = true
+                            }
+                        }
+                    ) {
+                        Text(text = if (isPlayingState.value) "停止odd" else "发送odd")
+                    }
+                }
+                Spacer(modifier = Modifier.width(20.dp))
+                Row {
+                    Button(
+                        onClick = {
                             if (isRecordingState.value) {
                                 stopRecording()
                             } else {
@@ -108,7 +177,30 @@ class MainActivity : ComponentActivity() {
                     ) {
                         Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
                     }
+                    Button(
+                        onClick = {
+                            if (isRecordingState.value) {
+                                stopRecording()
+                            } else {
+                                startRecording(evenDiscreteImpulseTrain)
+                            }
+                        }
+                    ) {
+                        Text(text = if (isRecordingState.value) "停止录制even" else "开始录制even")
+                    }
+                    Button(
+                        onClick = {
+                            if (isRecordingState.value) {
+                                stopRecording()
+                            } else {
+                                startRecording(oddDiscreteImpulseTrain)
+                            }
+                        }
+                    ) {
+                        Text(text = if (isRecordingState.value) "停止录制odd" else "开始录制odd")
+                    }
                 }
+                Text(text = "m = ${m.value}, phi = ${"%.3f".format(phi.value)}")
 
                 WIFIP2PScreen { message ->
                     val intent = Intent(this@MainActivity, WifiP2P::class.java)
@@ -241,7 +333,7 @@ class MainActivity : ComponentActivity() {
         playingThread?.join()
     }
 
-    private fun startRecording() {
+    private fun startRecording(odd: List<Int>? = null) {
         val u = 1
         val q = 81
         val Nzc = 81
@@ -290,11 +382,24 @@ class MainActivity : ComponentActivity() {
 //                    Log.d("audioRecord", "read len: $read")
                     val y = buffer.map { Complex(it.toDouble(), 0.0) }
                     // FIXME: GC & memory
-                    val cir = demodulate(y, ZC_hat_prime, FRAME_LEN)
+                    val cir: List<Complex> = if (odd != null) {
+                        demodulate(y, ZC_hat_prime, FRAME_LEN, I = odd)
+                    } else {
+                        demodulate(y, ZC_hat_prime, FRAME_LEN)
+                    }
+//                    val cir = demodulate(y, ZC_hat_prime, FRAME_LEN, I = oddDiscreteImpulseTrain)
 //                    Log.d("cir", "$cir")
+//                    val mag = signedMagnitude(cir)
                     val mag = magnitude(cir)
 //                    Log.d("mag", mag.toString())
 //                    Log.d("max_in_mag", mag.withIndex().maxByOrNull { it.value }.toString())
+                    val maxIndexedValue = mag.withIndex().maxByOrNull { it.value }
+                    if (maxIndexedValue != null) {
+                        m.value = maxIndexedValue.index
+                        phi.value = calculatePhaseShift(cir[maxIndexedValue.index])
+                    }
+//                    Log.d("max_in_mag", "...")
+
 
                     CoroutineScope(Dispatchers.IO).launch {
                         withContext(Dispatchers.Main) {

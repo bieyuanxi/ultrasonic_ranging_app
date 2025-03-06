@@ -252,4 +252,64 @@ class OFDMKtTest {
         assert(maxIndex == delay)
 
     }
+
+    @Test
+    fun testDemodulate5() {
+        System.setProperty("jna.library.path", "native-libs");
+        val u = 1
+        val q = 81
+        val Nzc = 81
+        val h_zc = Nzc / 2
+        val N = 960     // frame length
+        val f_c = 19000 // carrier frequency
+        val f_s = 48000 // sampling frequency
+        val n_c = N * f_c / f_s
+        val Nprime = 960
+
+        val zc = generateZCSequence(u, q, Nzc)
+        val ZC = dft(zc)
+
+        val ZC_hat = shiftRight(ZC, h_zc)
+        val ZC_hat_prime = conjugation(ZC_hat)
+
+        val oddDiscreteImpulseTrain =  discreteImpulseTrain(Nzc, true)
+        val evenDiscreteImpulseTrain =  discreteImpulseTrain(Nzc, false)
+
+        val x = modulate(ZC_hat, N, f_c, f_s, oddDiscreteImpulseTrain)
+
+        // ↓ sender
+        // ~
+        // ~
+        val delay = 233
+        val t = delay.toDouble() / f_s
+        val y = shiftRight(x, delay)    // !!!!!!!!! delay
+        // ~
+        // ~
+        // ↑ receiver
+
+        val cir = demodulate(y, ZC_hat_prime, Nprime, I = oddDiscreteImpulseTrain)
+        val cir1 = demodulate(y, ZC_hat_prime, Nprime, I = evenDiscreteImpulseTrain)
+
+
+        val mag = magnitude(cir)
+        val mag1 = magnitude(cir1)
+        
+        println(cir)
+
+        val maxIndexedValue = mag.withIndex().maxByOrNull { it.value }
+        val maxIndex = maxIndexedValue?.index
+        println(maxIndex)
+        println(mag[maxIndex!!])
+        val peerNext = maxIndex + Nprime / 2
+        println("${peerNext}: ${mag[peerNext]}")
+        assert(maxIndex == delay)
+        assert(mag[maxIndex] == mag[peerNext])
+
+        val maxIndexedValue1 = mag1.withIndex().maxByOrNull { it.value }
+        val maxIndex1 = maxIndexedValue1?.index
+        println(maxIndex1)
+        println(mag1[maxIndex1!!])
+
+        assert(mag1[maxIndex1].absoluteValue < 1e-6)
+    }
 }
