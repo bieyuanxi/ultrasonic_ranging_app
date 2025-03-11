@@ -9,7 +9,6 @@ import android.net.wifi.p2p.WifiP2pDevice
 import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
 import android.util.Log
-import androidx.compose.runtime.mutableStateListOf
 
 interface DirectActionListener : WifiP2pManager.ChannelListener {
     fun onWifiP2pStateChanged(enabled: Boolean)
@@ -18,9 +17,9 @@ interface DirectActionListener : WifiP2pManager.ChannelListener {
 
     fun onDisconnection()
 
-    fun onSelfDeviceAvailable(device: WifiP2pDevice)
+    fun onThisDeviceChanged(device: WifiP2pDevice)
 
-    fun onPeersAvailable(devices: List<WifiP2pDevice>)
+    fun onPeersListChanged(devices: List<WifiP2pDevice>)
 }
 
 /**
@@ -29,11 +28,14 @@ interface DirectActionListener : WifiP2pManager.ChannelListener {
 class WiFiDirectBroadcastReceiver(
     private val manager: WifiP2pManager,
     private val channel: WifiP2pManager.Channel,
-    private val directActionListener: DirectActionListener
 ) : BroadcastReceiver() {
     private val TAG = "WiFiDirectBroadcastReceiver"
 
-    private val peerList = mutableStateListOf<WifiP2pDevice>()
+    private var directActionListener: DirectActionListener? = null
+
+    fun setDirectActionListener(listener: DirectActionListener) {
+        directActionListener = listener
+    }
 
     @SuppressLint("MissingPermission")
     override fun onReceive(context: Context, intent: Intent) {
@@ -43,9 +45,9 @@ class WiFiDirectBroadcastReceiver(
                     WifiP2pManager.EXTRA_WIFI_STATE,
                     -1
                 ) == WifiP2pManager.WIFI_P2P_STATE_ENABLED
-                directActionListener.onWifiP2pStateChanged(enabled)
+                directActionListener?.onWifiP2pStateChanged(enabled)
                 if (!enabled) {
-                    directActionListener.onPeersAvailable(emptyList())
+                    directActionListener?.onPeersListChanged(emptyList())
                 }
                 Log.d(TAG, "WIFI_P2P_STATE_CHANGED_ACTION： $enabled")
             }
@@ -53,7 +55,7 @@ class WiFiDirectBroadcastReceiver(
             WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
                 Log.d(TAG, "WIFI_P2P_PEERS_CHANGED_ACTION")
                 manager.requestPeers(channel) { peers ->
-                    directActionListener.onPeersAvailable(peers.deviceList.toList())
+                    directActionListener?.onPeersListChanged(peers.deviceList.toList())
                 }
             }
 
@@ -64,12 +66,12 @@ class WiFiDirectBroadcastReceiver(
                 if (networkInfo != null && networkInfo.isConnected) {
                     manager.requestConnectionInfo(channel) { info ->
                         if (info != null) {
-                            directActionListener.onConnectionInfoAvailable(info)
+                            directActionListener?.onConnectionInfoAvailable(info)
                         }
                     }
                     Log.d(TAG, "已连接 P2P 设备")
                 } else {
-                    directActionListener.onDisconnection()
+                    directActionListener?.onDisconnection()
                     Log.d(TAG, "与 P2P 设备已断开连接")
                 }
             }
@@ -78,7 +80,7 @@ class WiFiDirectBroadcastReceiver(
                 val wifiP2pDevice =
                     intent.getParcelableExtra<WifiP2pDevice>(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE)
                 if (wifiP2pDevice != null) {
-                    directActionListener.onSelfDeviceAvailable(wifiP2pDevice)
+                    directActionListener?.onThisDeviceChanged(wifiP2pDevice)
                 }
                 Log.d(TAG, "WIFI_P2P_THIS_DEVICE_CHANGED_ACTION ： ${wifiP2pDevice.toString()}")
             }

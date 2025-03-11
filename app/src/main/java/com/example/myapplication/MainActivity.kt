@@ -1,21 +1,36 @@
 package com.example.myapplication
 
 import android.Manifest
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.net.wifi.p2p.WifiP2pDevice
+import android.net.wifi.p2p.WifiP2pInfo
 import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -24,8 +39,10 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import com.example.myapplication.sound.AudioRecordManager
@@ -53,6 +70,50 @@ class MainActivity : ComponentActivity() {
     private val oddDiscreteImpulseTrain =  discreteImpulseTrain(81, true)
     private val evenDiscreteImpulseTrain =  discreteImpulseTrain(81, false)
 
+    private val peerList = mutableStateListOf<WifiP2pDevice>()
+    private var wifiDirectService: WifiDirectService? = null
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as WifiDirectService.LocalBinder
+            wifiDirectService = binder.getService()
+            wifiDirectService?.setDirectActionListener(directActionListener)
+            Toast.makeText(this@MainActivity, "wifiDirectService connected", Toast.LENGTH_SHORT).show()
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            wifiDirectService = null
+            Toast.makeText(this@MainActivity, "wifiDirectService disconnected", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val directActionListener: DirectActionListener = object: DirectActionListener {
+        override fun onWifiP2pStateChanged(enabled: Boolean) {
+            Log.d("onP2pStateChanged", "$enabled")
+        }
+
+        override fun onConnectionInfoAvailable(wifiP2pInfo: WifiP2pInfo) {
+            Log.d("onConnInfoAvailable", "$wifiP2pInfo")
+        }
+
+        override fun onDisconnection() {
+            Log.d("onDisconnection", "")
+        }
+
+        override fun onThisDeviceChanged(device: WifiP2pDevice) {
+            Log.d("onThisDeviceChanged", "$device")
+        }
+
+        override fun onPeersListChanged(devices: List<WifiP2pDevice>) {
+            peerList.clear()
+            peerList.addAll(devices)
+        }
+
+        override fun onChannelDisconnected() {
+            Log.d("onChannelDisconn", "")
+        }
+
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -68,6 +129,9 @@ class MainActivity : ComponentActivity() {
 
         audioTrackManager = AudioTrackManager()
         audioRecordManager = AudioRecordManager()
+
+        val intent = Intent(this, WifiDirectService::class.java)
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
         setContent {
             Column(
@@ -152,6 +216,60 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 Text(text = "m = ${m.intValue}, phi = ${"%.3f".format(phi.doubleValue)}")
+                Row {
+                    Button(
+                        onClick = {
+                            wifiDirectService?.createGroup();
+                        }
+                    ) {
+                        Text(text = "createGroup")
+                    }
+                    Button(
+                        onClick = {
+                            wifiDirectService?.removeGroup();
+                        }
+                    ) {
+                        Text(text = "removeGroup")
+                    }
+                }
+                Row {
+                    Button(
+                        onClick = {
+                            wifiDirectService?.discoverPeers();
+                        }
+                    ) {
+                        Text(text = "discoverPeers")
+                    }
+                    Button(
+                        onClick = {
+                            wifiDirectService?.disconnect();
+                        }
+                    ) {
+                        Text(text = "disconnect")
+                    }
+                }
+                LazyColumn(
+                    modifier = Modifier.height(100.dp).background(Color.LightGray)
+                ) {
+                    items(peerList) { device ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(1.dp) // 外边距
+                                .clickable{ },
+                            onClick = {
+                                wifiDirectService?.connectToDevice(device);
+                            }
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(15.dp) // 内边距
+                            ) {
+                                Text(text = "${device.deviceName}")
+                            }
+                        }
+                    }
+                }
+
 
                 WIFIP2PScreen { message ->
                     val intent = Intent(this@MainActivity, WifiP2P::class.java)
@@ -231,6 +349,7 @@ class MainActivity : ComponentActivity() {
         if (isRecordingState.value) {
             stopRecording()
         }
+        unbindService(serviceConnection)
     }
 
     // 注册权限请求回调
