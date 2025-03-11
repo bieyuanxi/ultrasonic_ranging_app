@@ -3,14 +3,10 @@ package com.example.myapplication
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioAttributes
-import android.media.AudioFormat
 import android.media.AudioManager
-import android.media.AudioRecord
-import android.media.AudioTrack
-import android.media.MediaRecorder
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,18 +18,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import com.example.myapplication.sound.AudioRecordManager
 import com.example.myapplication.sound.AudioTrackManager
-import com.example.myapplication.sound.RecordingListener
-import java.io.IOException
-import kotlin.math.sin
 
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
@@ -41,25 +37,18 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
-    private val SAMPLE_RATE = 48000
-    private val FRAME_LEN = 960
-
     private lateinit var audioRecordManager: AudioRecordManager
     private lateinit var audioTrackManager: AudioTrackManager
 
-    private var lineDataEntries = mutableStateListOf<Entry>()
-
     private val isPlayingState = mutableStateOf(false)
     private val isRecordingState = mutableStateOf(false)
-
-    private val m = mutableStateOf(0)
-    private val phi = mutableStateOf(0.0)
-
+    private var lineDataEntries = mutableStateListOf<Entry>()
+    private val m = mutableIntStateOf(0)
+    private val phi = mutableDoubleStateOf(0.0)
 
     private val oddDiscreteImpulseTrain =  discreteImpulseTrain(81, true)
     private val evenDiscreteImpulseTrain =  discreteImpulseTrain(81, false)
@@ -162,7 +151,7 @@ class MainActivity : ComponentActivity() {
                         Text(text = if (isRecordingState.value) "停止录制odd" else "开始录制odd")
                     }
                 }
-                Text(text = "m = ${m.value}, phi = ${"%.3f".format(phi.value)}")
+                Text(text = "m = ${m.intValue}, phi = ${"%.3f".format(phi.doubleValue)}")
 
                 WIFIP2PScreen { message ->
                     val intent = Intent(this@MainActivity, WifiP2P::class.java)
@@ -216,8 +205,8 @@ class MainActivity : ComponentActivity() {
             val mag = magnitude(cir)
             val maxIndexedValue = mag.withIndex().maxByOrNull { it.value }
             if (maxIndexedValue != null) {
-                m.value = maxIndexedValue.index
-                phi.value = calculatePhaseShift(cir[maxIndexedValue.index])
+                m.intValue = maxIndexedValue.index
+                phi.doubleValue = calculatePhaseShift(cir[maxIndexedValue.index])
             }
 
             CoroutineScope(Dispatchers.IO).launch {
@@ -252,6 +241,7 @@ class MainActivity : ComponentActivity() {
             // 权限已授予，执行相应操作
         } else {
             // 权限被拒绝，给出提示或处理逻辑
+            Toast.makeText(this, " Need RECORD_AUDIO", Toast.LENGTH_SHORT).show()
         }
     }
 
