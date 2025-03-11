@@ -66,6 +66,63 @@ fun calculatePhaseShift(complex: Complex): Double {
     }
 }
 
+fun genOddAudioData(): FloatArray {
+    val u = 1
+    val q = 81
+    val Nzc = 81
+    val h_zc = Nzc / 2
+    val zc = generateZCSequence(u, q, Nzc)
+    val ZC = dft(zc)
+    val ZC_hat = shiftRight(ZC, h_zc)
+
+    val N = 960     // frame length
+    val f_c = 19000 // carrier frequency
+    val f_s = 48000 // sampling frequency
+    val n_c = N * f_c / f_s
+    val odd = true
+    val x = modulate(ZC_hat, N, f_c, f_s, discreteImpulseTrain(Nzc, odd)).toMutableList()
+
+    return x.map { it.real.toFloat() }.toFloatArray()
+}
+
+fun genEvenAudioData(): FloatArray {
+    val u = 1
+    val q = 81
+    val Nzc = 81
+    val h_zc = Nzc / 2
+    val zc = generateZCSequence(u, q, Nzc)
+    val ZC = dft(zc)
+    val ZC_hat = shiftRight(ZC, h_zc)
+
+    val N = 960     // frame length
+    val f_c = 19000 // carrier frequency
+    val f_s = 48000 // sampling frequency
+    val n_c = N * f_c / f_s
+    val odd = false
+    val x = modulate(ZC_hat, N, f_c, f_s, discreteImpulseTrain(Nzc, odd)).toMutableList()
+
+    return x.map { it.real.toFloat() }.toFloatArray()
+}
+
+fun genAudioData(): FloatArray {
+    val u = 1
+    val q = 81
+    val Nzc = 81
+    val h_zc = Nzc / 2
+    val zc = generateZCSequence(u, q, Nzc)
+    val ZC = dft(zc)
+    val ZC_hat = shiftRight(ZC, h_zc)
+
+    val N = 960     // frame length
+    val f_c = 19000 // carrier frequency
+    val f_s = 48000 // sampling frequency
+    val n_c = N * f_c / f_s
+    val odd = true
+    val x = modulate(ZC_hat = ZC_hat, N = N, f_c = f_c, f_s = f_s).toMutableList()
+
+    return x.map { it.real.toFloat() }.toFloatArray()
+}
+
 fun main() {
     val originalList = listOf(1, 2, 3, 4, 5)
     val shiftedList = shiftRight(originalList, 2)
