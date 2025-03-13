@@ -47,6 +47,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import com.example.myapplication.sound.AudioRecordManager
 import com.example.myapplication.sound.AudioTrackManager
+import com.example.wifidirect.net.RangingClient
+import com.example.wifidirect.net.RangingServer
 
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
@@ -69,6 +71,16 @@ class MainActivity : ComponentActivity() {
 
     private val oddDiscreteImpulseTrain =  discreteImpulseTrain(81, true)
     private val evenDiscreteImpulseTrain =  discreteImpulseTrain(81, false)
+
+    private val clientState = mutableStateOf(false)
+    private val rangingClient by lazy {
+        RangingClient()
+    }
+
+    private val serverState = mutableStateOf(false)
+    private val rangingServer by lazy {
+        RangingServer()
+    }
 
     private val peerList = mutableStateListOf<WifiP2pDevice>()
     private var wifiDirectService: WifiDirectService? = null
@@ -93,9 +105,29 @@ class MainActivity : ComponentActivity() {
 
         override fun onConnectionInfoAvailable(wifiP2pInfo: WifiP2pInfo) {
             Log.d("onConnInfoAvailable", "$wifiP2pInfo")
+            if (wifiP2pInfo.isGroupOwner) {
+                if (!serverState.value) {
+                    rangingServer.startServer()
+                    serverState.value = true
+                }
+            } else {
+                if(!clientState.value) {
+                    wifiP2pInfo.groupOwnerAddress.hostAddress?.let { rangingClient.startClient(it) }
+                    clientState.value = true
+                }
+            }
         }
 
         override fun onDisconnection() {
+            if (serverState.value) {
+                rangingServer.cancelServer()
+                serverState.value = false
+            }
+            if(clientState.value) {
+                rangingClient.cancelClient()
+                clientState.value = false
+            }
+
             Log.d("onDisconnection", "")
         }
 
