@@ -17,15 +17,19 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 
+fun interface ConnectionAcceptedListener {
+    suspend fun onConnectionAccepted(reader: BufferedReader, writer: BufferedWriter);
+}
+
 class RangingServer {
     private var serverJob: Job? = null
     private var serverSocket: ServerSocket? = null
 
-    fun startServer(port: Int = 8888) {
+    fun startServer(port: Int = 8888, listener: ConnectionAcceptedListener? = null) {
         if (serverJob?.isActive == true) {
             return
         }
-        serverJob = startServerJob(port)
+        serverJob = startServerJob(port, listener)
     }
 
     fun cancelServer() {
@@ -35,7 +39,7 @@ class RangingServer {
         serverSocket = null
     }
 
-    private fun startServerJob(port: Int) = CoroutineScope(Dispatchers.IO).launch {
+    private fun startServerJob(port: Int, listener: ConnectionAcceptedListener? = null) = CoroutineScope(Dispatchers.IO).launch {
         try {
             serverSocket = ServerSocket(port)
             Log.d("ServerSocket", "Server is listening on port $port")
@@ -46,7 +50,10 @@ class RangingServer {
                         val socket = it.accept()
                         Log.d("Server", "New client connected: ${socket.inetAddress}")
                         launch {
-                            handleConnection(socket)
+//                            handleConnection(socket)
+                            val reader = BufferedReader(InputStreamReader(socket.inputStream))
+                            val writer = BufferedWriter(OutputStreamWriter(socket.outputStream))
+                            listener?.onConnectionAccepted(reader, writer)
                         }
                     } catch (e: SocketException) {
                         Log.d("Socket", "Socket is closing due to cancellation.")

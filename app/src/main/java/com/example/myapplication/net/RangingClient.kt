@@ -21,11 +21,11 @@ class RangingClient {
     private lateinit var socket: Socket
 
     // 启动客户端连接
-    fun startClient(host: String, port: Int = 8888) {
+    fun startClient(host: String, port: Int = 8888,  listener: ConnectionAcceptedListener? = null) {
         if (clientJob?.isActive == true) {
             return
         }
-        clientJob = startClientJob(host, port)
+        clientJob = startClientJob(host, port, listener)
     }
 
     fun cancelClient() {
@@ -34,12 +34,15 @@ class RangingClient {
         clientJob = null
     }
 
-    private fun startClientJob(host: String, port: Int) = CoroutineScope(Dispatchers.IO).launch {
+    private fun startClientJob(host: String, port: Int,  listener: ConnectionAcceptedListener? = null) = CoroutineScope(Dispatchers.IO).launch {
         Log.d("Client", "Starting client connection...")
         try {
             socket = Socket(host, port)
             Log.d("Client", "Connected to server: ${socket.inetAddress}")
-            handleConnection(socket)
+//            handleConnection(socket)
+            val reader = BufferedReader(InputStreamReader(socket.inputStream))
+            val writer = BufferedWriter(OutputStreamWriter(socket.outputStream))
+            listener?.onConnectionAccepted(reader, writer)
             socket.close()
         } catch (e: IOException) {
             Log.e("Client", "Error: ${e.message}")

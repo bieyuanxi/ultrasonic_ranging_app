@@ -18,7 +18,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,24 +39,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import com.example.myapplication.sound.AudioRecordManager
 import com.example.myapplication.sound.AudioTrackManager
 import com.example.wifidirect.net.RangingClient
 import com.example.wifidirect.net.RangingServer
-
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.BufferedWriter
 
 class MainActivity : ComponentActivity() {
     private lateinit var audioRecordManager: AudioRecordManager
@@ -107,14 +106,14 @@ class MainActivity : ComponentActivity() {
             Log.d("onConnInfoAvailable", "$wifiP2pInfo")
             if (wifiP2pInfo.isGroupOwner) {
                 if (!serverState.value) {
-                    rangingServer.startServer()
-                    serverState.value = true
+                    startServerRangingWork()
                 }
+                serverState.value = true
             } else {
                 if(!clientState.value) {
-                    wifiP2pInfo.groupOwnerAddress.hostAddress?.let { rangingClient.startClient(it) }
-                    clientState.value = true
+                    wifiP2pInfo.groupOwnerAddress.hostAddress?.let { startClientRangingWork(it) }
                 }
+                clientState.value = true
             }
         }
 
@@ -281,14 +280,16 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 LazyColumn(
-                    modifier = Modifier.height(100.dp).background(Color.LightGray)
+                    modifier = Modifier
+                        .height(100.dp)
+                        .background(Color.LightGray)
                 ) {
                     items(peerList) { device ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(1.dp) // 外边距
-                                .clickable{ },
+                                .clickable { },
                             onClick = {
                                 wifiDirectService?.connectToDevice(device);
                             }
@@ -382,6 +383,104 @@ class MainActivity : ComponentActivity() {
             stopRecording()
         }
         unbindService(serviceConnection)
+    }
+
+    private fun startServerRangingWork() {
+        rangingServer.startServer() {reader: BufferedReader, writer: BufferedWriter ->
+            val mIndex = intArrayOf(0, 0, 0)    // m_aa, m_ba, garbage
+            var i = 0
+            writer.write("startRecording\n")
+            writer.flush()
+            audioRecordManager.startRecording(listener = { cir ->
+                val mag = magnitude(cir)
+                val maxIndexedValue = mag.withIndex().maxByOrNull { it.value }
+                if (maxIndexedValue != null) {
+                    m.intValue = maxIndexedValue.index
+                    phi.doubleValue = calculatePhaseShift(cir[maxIndexedValue.index])
+                    mIndex[i] = maxIndexedValue.index
+                }
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    withContext(Dispatchers.Main) {
+                        lineDataEntries = lineDataEntries.apply {
+                            clear()
+                            addAll(mag.mapIndexed { index, d -> Entry(index.toFloat(), d.toFloat()) })
+                        }
+                    }
+                }
+            })
+            delay(1000)
+
+            writer.write("startServerAudioTrack\n")
+            writer.flush()
+            val audioData = genAudioData()
+            playSound(audioData)
+            reader.readLine()   //ClientRangingDone
+            i = 1
+            stopPlaying()
+
+            delay(1000)
+            writer.write("startClientAudioTrack\n")
+            writer.flush()
+
+            delay(1000)
+            i = 2
+            stopRecording()
+            writer.write("ServerRangingDone\n")
+            writer.flush()
+
+            val m = reader.readLine()
+            Log.d("MMMMMMMMM", "(${mIndex[0]}, ${m}, ${mIndex[1]})")
+
+
+        }
+    }
+
+    private fun startClientRangingWork(host: String) {
+        rangingClient.startClient(host) {reader: BufferedReader, writer: BufferedWriter ->
+            val mIndex = intArrayOf(0, 0, 0)    // m_ab, m_bb, garbage
+            var i = 0
+            reader.readLine();  // startRecording
+            audioRecordManager.startRecording(listener = { cir ->
+                val mag = magnitude(cir)
+                val maxIndexedValue = mag.withIndex().maxByOrNull { it.value }
+                if (maxIndexedValue != null) {
+                    m.intValue = maxIndexedValue.index
+                    phi.doubleValue = calculatePhaseShift(cir[maxIndexedValue.index])
+                    mIndex[i] = maxIndexedValue.index
+                }
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    withContext(Dispatchers.Main) {
+                        lineDataEntries = lineDataEntries.apply {
+                            clear()
+                            addAll(mag.mapIndexed { index, d -> Entry(index.toFloat(), d.toFloat()) })
+                        }
+                    }
+                }
+            })
+            reader.readLine();  // startServerAudioTrack
+            delay(1000)
+            i = 1
+            writer.write("ClientRangingDone\n")    //
+            writer.flush()
+
+            reader.readLine();  // startClientAudioTrack
+
+            val audioData = genAudioData()
+            playSound(audioData)
+
+            reader.readLine() // ServerRangingDone
+            i = 2
+            stopPlaying()
+
+            writer.write("${mIndex[0]}, ${mIndex[1]}")
+            writer.flush()
+//            val m = reader.ready()
+
+
+            stopRecording()
+        }
     }
 
     // 注册权限请求回调
