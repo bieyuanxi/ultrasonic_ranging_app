@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.wifi.p2p.WifiP2pDevice
 import android.net.wifi.p2p.WifiP2pInfo
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -145,18 +146,47 @@ class MainActivity : ComponentActivity() {
 
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    // 注册权限请求回调
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allPermissionsGranted = permissions.values.all { it }
+        Log.d("allPermissionsGranted", "$allPermissionsGranted")
+        if (allPermissionsGranted) {
+//            permissions.values.
+        } else {
+            Toast.makeText(this@MainActivity, "权限未获取", Toast.LENGTH_SHORT).show()
+        }
+    }
 
-        logDeviceInfo()
+    private fun checkAndRequestPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {    // >= android 13
+            permissionsToRequest.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+        }else {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
 
         if (ActivityCompat.checkSelfPermission(
                 this,
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
         }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        logDeviceInfo()
+
+        checkAndRequestPermissions()
 
         audioTrackManager = AudioTrackManager()
         audioRecordManager = AudioRecordManager()
@@ -483,17 +513,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // 注册权限请求回调
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            // 权限已授予，执行相应操作
-        } else {
-            // 权限被拒绝，给出提示或处理逻辑
-            Toast.makeText(this, " Need RECORD_AUDIO", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     private fun logDeviceInfo() {
         Log.d("FEATURE_WIFI_AWARE", "${packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)}")
