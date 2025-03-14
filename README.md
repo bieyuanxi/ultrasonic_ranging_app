@@ -1,6 +1,6 @@
-# 使用rustfft库
+# 使用简单包装的rustfft库
 1. 创建文件夹：app/src/main/jniLibs
-2. 将压缩文件解压到jniLibs目录下
+2. 将[压缩文件](https://pan.baidu.com/s/1jw0eY33CJlsTDmH_7J28Sw?pwd=mfxf)解压到jniLibs目录下
 3. 你应该能看到：
     ```shell
     ├───jniLibs
