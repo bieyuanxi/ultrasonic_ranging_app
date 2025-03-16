@@ -34,6 +34,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -68,9 +69,10 @@ class MainActivity : ComponentActivity() {
     private var lineDataEntries = mutableStateListOf<Entry>()
     private val m = mutableIntStateOf(0)
     private val phi = mutableDoubleStateOf(0.0)
+    private val distance = mutableFloatStateOf(0.0f)
 
-    private val oddDiscreteImpulseTrain =  discreteImpulseTrain(81, true)
-    private val evenDiscreteImpulseTrain =  discreteImpulseTrain(81, false)
+    private val oddDiscreteImpulseTrain = discreteImpulseTrain(81, true)
+    private val evenDiscreteImpulseTrain = discreteImpulseTrain(81, false)
 
     private val clientState = mutableStateOf(false)
     private val rangingClient by lazy {
@@ -89,16 +91,18 @@ class MainActivity : ComponentActivity() {
             val binder = service as WifiDirectService.LocalBinder
             wifiDirectService = binder.getService()
             wifiDirectService?.setDirectActionListener(directActionListener)
-            Toast.makeText(this@MainActivity, "wifiDirectService connected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@MainActivity, "wifiDirectService connected", Toast.LENGTH_SHORT)
+                .show()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             wifiDirectService = null
-            Toast.makeText(this@MainActivity, "wifiDirectService disconnected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@MainActivity, "wifiDirectService disconnected", Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
-    private val directActionListener: DirectActionListener = object: DirectActionListener {
+    private val directActionListener: DirectActionListener = object : DirectActionListener {
         override fun onWifiP2pStateChanged(enabled: Boolean) {
             Log.d("onP2pStateChanged", "$enabled")
         }
@@ -111,7 +115,7 @@ class MainActivity : ComponentActivity() {
                 }
                 serverState.value = true
             } else {
-                if(!clientState.value) {
+                if (!clientState.value) {
                     wifiP2pInfo.groupOwnerAddress.hostAddress?.let { startClientRangingWork(it) }
                 }
                 clientState.value = true
@@ -123,7 +127,7 @@ class MainActivity : ComponentActivity() {
                 rangingServer.cancelServer()
                 serverState.value = false
             }
-            if(clientState.value) {
+            if (clientState.value) {
                 rangingClient.cancelClient()
                 clientState.value = false
             }
@@ -164,7 +168,7 @@ class MainActivity : ComponentActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {    // >= android 13
             permissionsToRequest.add(Manifest.permission.NEARBY_WIFI_DEVICES)
-        }else {
+        } else {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
@@ -276,7 +280,13 @@ class MainActivity : ComponentActivity() {
                         Text(text = if (isRecordingState.value) "停止录制odd" else "开始录制odd")
                     }
                 }
-                Text(text = "m = ${m.intValue}, phi = ${"%.3f".format(phi.doubleValue)}")
+                Text(
+                    text = "m = ${m.intValue}, phi = ${"%.3f".format(phi.doubleValue)}, distance = ${
+                        "%.3f".format(
+                            distance.floatValue
+                        )
+                    }"
+                )
                 Row {
                     Button(
                         onClick = {
@@ -380,7 +390,7 @@ class MainActivity : ComponentActivity() {
         isPlayingState.value = false
     }
 
-    private fun startRecording(odd: List<Int>? = null, ) {
+    private fun startRecording(odd: List<Int>? = null) {
         isRecordingState.value = true
         audioRecordManager.startRecording(odd, listener = { cir ->
             val mag = magnitude(cir)
@@ -416,7 +426,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startServerRangingWork() {
-        rangingServer.startServer() {reader: BufferedReader, writer: BufferedWriter ->
+        rangingServer.startServer() { reader: BufferedReader, writer: BufferedWriter ->
             val mIndex = intArrayOf(0, 0, 0)    // m_aa, m_ba, garbage
             var i = 0
             writer.write("startRecording\n")
@@ -434,7 +444,12 @@ class MainActivity : ComponentActivity() {
                     withContext(Dispatchers.Main) {
                         lineDataEntries = lineDataEntries.apply {
                             clear()
-                            addAll(mag.mapIndexed { index, d -> Entry(index.toFloat(), d.toFloat()) })
+                            addAll(mag.mapIndexed { index, d ->
+                                Entry(
+                                    index.toFloat(),
+                                    d.toFloat()
+                                )
+                            })
                         }
                     }
                 }
@@ -459,15 +474,25 @@ class MainActivity : ComponentActivity() {
             writer.write("ServerRangingDone\n")
             writer.flush()
 
-            val m = reader.readLine()
-            Log.d("MMMMMMMMM", "(${mIndex[0]}, ${m}, ${mIndex[1]})")
+            val str = reader.readLine()
 
 
+            val m_aa = mIndex[0]
+            val m_ba = mIndex[1]
+            val parts = str.split(", ")
+            val m_ab = parts[0].toInt()
+            val m_bb = parts[1].toInt()
+            Log.d("Distance", "(${m_aa}, ${m_ab}, ${m_bb}, ${m_ba})")
+
+            writer.write("${m_aa}, ${m_ab}, ${m_bb}, ${m_ba}\n")
+            writer.flush()
+
+            distance.floatValue = get_distance(m_aa, m_ab, m_bb, m_ba)
         }
     }
 
     private fun startClientRangingWork(host: String) {
-        rangingClient.startClient(host) {reader: BufferedReader, writer: BufferedWriter ->
+        rangingClient.startClient(host) { reader: BufferedReader, writer: BufferedWriter ->
             val mIndex = intArrayOf(0, 0, 0)    // m_ab, m_bb, garbage
             var i = 0
             reader.readLine();  // startRecording
@@ -484,7 +509,12 @@ class MainActivity : ComponentActivity() {
                     withContext(Dispatchers.Main) {
                         lineDataEntries = lineDataEntries.apply {
                             clear()
-                            addAll(mag.mapIndexed { index, d -> Entry(index.toFloat(), d.toFloat()) })
+                            addAll(mag.mapIndexed { index, d ->
+                                Entry(
+                                    index.toFloat(),
+                                    d.toFloat()
+                                )
+                            })
                         }
                     }
                 }
@@ -504,10 +534,19 @@ class MainActivity : ComponentActivity() {
             i = 2
             stopPlaying()
 
-            writer.write("${mIndex[0]}, ${mIndex[1]}")
+            writer.write("${mIndex[0]}, ${mIndex[1]}\n")
             writer.flush()
 //            val m = reader.ready()
 
+            val str = reader.readLine();  // distance
+            val parts = str.split(", ")
+            val m_aa = parts[0].toInt()
+            val m_ba = parts[1].toInt()
+            val m_bb = parts[2].toInt()
+            val m_ab = parts[3].toInt()
+            Log.d("Distance", "(${m_aa}, ${m_ab}, ${m_bb}, ${m_ba})")
+
+            distance.floatValue = get_distance(m_aa, m_ab, m_bb, m_ba)
 
             stopRecording()
         }
@@ -515,20 +554,29 @@ class MainActivity : ComponentActivity() {
 
 
     private fun logDeviceInfo() {
-        Log.d("FEATURE_WIFI_AWARE", "${packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)}")
+        Log.d(
+            "FEATURE_WIFI_AWARE",
+            "${packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)}"
+        )
 
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         val isSupportMicNearUltrasound =
             audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_MIC_NEAR_ULTRASOUND)
         val isSupportSpeakerNearUltrasound =
             audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_SPEAKER_NEAR_ULTRASOUND)
-        Log.d("SupportCheck", "MicUltrasound: ${isSupportMicNearUltrasound}, SpeakerUltrasound: $isSupportSpeakerNearUltrasound")
+        Log.d(
+            "SupportCheck",
+            "MicUltrasound: ${isSupportMicNearUltrasound}, SpeakerUltrasound: $isSupportSpeakerNearUltrasound"
+        )
 
         val pOutputSampleRate =
             audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
-        val  pOutputFramesPerBuffer =
+        val pOutputFramesPerBuffer =
             audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
-        Log.d("SupportCheck", "pOutputSampleRate: $pOutputSampleRate, pOutputFramesPerBuffer: $pOutputFramesPerBuffer")
+        Log.d(
+            "SupportCheck",
+            "pOutputSampleRate: $pOutputSampleRate, pOutputFramesPerBuffer: $pOutputFramesPerBuffer"
+        )
 
         val hasLowLatencyFeature: Boolean =
             packageManager.hasSystemFeature(PackageManager.FEATURE_AUDIO_LOW_LATENCY)

@@ -6,7 +6,7 @@ import kotlin.math.atan
 fun <T> shiftLeft(list: List<T>, shift: Int): List<T> {
     val n = list.size
     var actualShift = shift % n
-    if(actualShift < 0) {
+    if (actualShift < 0) {
         actualShift += n
     }
     val result = MutableList(n) { i ->
@@ -25,18 +25,18 @@ fun conjugation(list: List<Complex>): List<Complex> {
     }
 }
 
-fun magnitude(list: List<Complex>) : List<Double> {
+fun magnitude(list: List<Complex>): List<Double> {
     return List(list.size) { i ->
         list[i].abs()
     }
 }
 
-fun signedMagnitude(list: List<Complex>) : List<Double> {
+fun signedMagnitude(list: List<Complex>): List<Double> {
     return List(list.size) { i ->
         val abs = list[i].abs()
         if (list[i].real > 0) {
             abs
-        }else {
+        } else {
             -abs
         }
     }
@@ -58,7 +58,7 @@ fun calculatePhaseShift(complex: Complex): Double {
     val imaginaryPart = complex.imag
     return when {
         realPart == 0.0 && imaginaryPart > 0 -> PI / 2
-        realPart == 0.0 && imaginaryPart < 0 -> - PI / 2
+        realPart == 0.0 && imaginaryPart < 0 -> -PI / 2
         realPart > 0 -> atan(imaginaryPart / realPart)
         imaginaryPart <= 0 -> -PI + atan(imaginaryPart / realPart)
         imaginaryPart > 0 -> PI + atan(imaginaryPart / realPart)
@@ -121,6 +121,20 @@ fun genAudioData(): FloatArray {
     val x = modulate(ZC_hat = ZC_hat, N = N, f_c = f_c, f_s = f_s).toMutableList()
 
     return x.map { it.real.toFloat() }.toFloatArray()
+}
+
+fun get_distance(
+    m_aa: Int, m_ab: Int, m_bb: Int, m_ba: Int,
+    N_prime: Int = 960, c: Float = 343.0f, N: Int = 960, f_s: Int = 48000
+): Float {
+    val m = m_aa + m_bb - m_ab - m_ba
+    for (i in -5..5) {
+        val d = -(m + (i * N_prime)) * c * N / f_s / N_prime
+        if (d in 0.0f..7.0f) {
+            return d / 2
+        }
+    }
+    return -1.0f
 }
 
 fun main() {
