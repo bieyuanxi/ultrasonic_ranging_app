@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
     private val oddDiscreteImpulseTrain = discreteImpulseTrain(81, true)
     private val evenDiscreteImpulseTrain = discreteImpulseTrain(81, false)
 
-    private val clientState = mutableStateOf(false)
+    private val hostAddress = mutableStateOf("")
     private val rangingClient by lazy {
         RangingClient()
     }
@@ -115,10 +115,7 @@ class MainActivity : ComponentActivity() {
                 }
                 serverState.value = true
             } else {
-                if (!clientState.value) {
-                    wifiP2pInfo.groupOwnerAddress.hostAddress?.let { startClientRangingWork(it) }
-                }
-                clientState.value = true
+                wifiP2pInfo.groupOwnerAddress.hostAddress?.let { hostAddress.value =  it }
             }
         }
 
@@ -127,10 +124,8 @@ class MainActivity : ComponentActivity() {
                 rangingServer.cancelServer()
                 serverState.value = false
             }
-            if (clientState.value) {
-                rangingClient.cancelClient()
-                clientState.value = false
-            }
+            hostAddress.value = ""
+
 
             Log.d("onDisconnection", "")
         }
@@ -204,88 +199,88 @@ class MainActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(text = "声波发送和接收示例")
-                Row {
-                    Button(
-                        onClick = {
-                            if (isPlayingState.value) {
-                                stopPlaying()
-                            } else {
-                                val audioData = genAudioData()
-                                playSound(audioData)
-                            }
-                        }
-                    ) {
-                        Text(text = if (isPlayingState.value) "停止全带宽" else "发送全带宽")
-                    }
-                    Spacer(modifier = Modifier.width(20.dp))
-                    Button(
-                        onClick = {
-                            if (isPlayingState.value) {
-                                stopPlaying()
-                            } else {
-                                val audioData = genEvenAudioData()
-                                playSound(audioData)
-                            }
-                        }
-                    ) {
-                        Text(text = if (isPlayingState.value) "停止even" else "发送even")
-                    }
-                    Spacer(modifier = Modifier.width(20.dp))
-                    Button(
-                        onClick = {
-                            if (isPlayingState.value) {
-                                stopPlaying()
-                            } else {
-                                val audioData = genOddAudioData()
-                                playSound(audioData)
-                            }
-                        }
-                    ) {
-                        Text(text = if (isPlayingState.value) "停止odd" else "发送odd")
-                    }
-                }
-                Spacer(modifier = Modifier.width(20.dp))
-                Row {
-                    Button(
-                        onClick = {
-                            if (isRecordingState.value) {
-                                stopRecording()
-                            } else {
-                                startRecording()
-                            }
-                        }
-                    ) {
-                        Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
-                    }
-                    Button(
-                        onClick = {
-                            if (isRecordingState.value) {
-                                stopRecording()
-                            } else {
-                                startRecording(evenDiscreteImpulseTrain)
-                            }
-                        }
-                    ) {
-                        Text(text = if (isRecordingState.value) "停止录制even" else "开始录制even")
-                    }
-                    Button(
-                        onClick = {
-                            if (isRecordingState.value) {
-                                stopRecording()
-                            } else {
-                                startRecording(oddDiscreteImpulseTrain)
-                            }
-                        }
-                    ) {
-                        Text(text = if (isRecordingState.value) "停止录制odd" else "开始录制odd")
-                    }
-                }
+//                Row {
+//                    Button(
+//                        onClick = {
+//                            if (isPlayingState.value) {
+//                                stopPlaying()
+//                            } else {
+//                                val audioData = genAudioData()
+//                                playSound(audioData)
+//                            }
+//                        }
+//                    ) {
+//                        Text(text = if (isPlayingState.value) "停止全带宽" else "发送全带宽")
+//                    }
+//                    Spacer(modifier = Modifier.width(20.dp))
+//                    Button(
+//                        onClick = {
+//                            if (isPlayingState.value) {
+//                                stopPlaying()
+//                            } else {
+//                                val audioData = genEvenAudioData()
+//                                playSound(audioData)
+//                            }
+//                        }
+//                    ) {
+//                        Text(text = if (isPlayingState.value) "停止even" else "发送even")
+//                    }
+//                    Spacer(modifier = Modifier.width(20.dp))
+//                    Button(
+//                        onClick = {
+//                            if (isPlayingState.value) {
+//                                stopPlaying()
+//                            } else {
+//                                val audioData = genOddAudioData()
+//                                playSound(audioData)
+//                            }
+//                        }
+//                    ) {
+//                        Text(text = if (isPlayingState.value) "停止odd" else "发送odd")
+//                    }
+//                }
+//                Spacer(modifier = Modifier.width(20.dp))
+//                Row {
+//                    Button(
+//                        onClick = {
+//                            if (isRecordingState.value) {
+//                                stopRecording()
+//                            } else {
+//                                startRecording()
+//                            }
+//                        }
+//                    ) {
+//                        Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
+//                    }
+//                    Button(
+//                        onClick = {
+//                            if (isRecordingState.value) {
+//                                stopRecording()
+//                            } else {
+//                                startRecording(evenDiscreteImpulseTrain)
+//                            }
+//                        }
+//                    ) {
+//                        Text(text = if (isRecordingState.value) "停止录制even" else "开始录制even")
+//                    }
+//                    Button(
+//                        onClick = {
+//                            if (isRecordingState.value) {
+//                                stopRecording()
+//                            } else {
+//                                startRecording(oddDiscreteImpulseTrain)
+//                            }
+//                        }
+//                    ) {
+//                        Text(text = if (isRecordingState.value) "停止录制odd" else "开始录制odd")
+//                    }
+//                }
                 Text(
                     text = "m = ${m.intValue}, phi = ${"%.3f".format(phi.doubleValue)}, distance = ${
                         "%.3f".format(
                             distance.floatValue
                         )
-                    }"
+                    }m"
                 )
                 Row {
                     Button(
@@ -313,12 +308,14 @@ class MainActivity : ComponentActivity() {
                     }
                     Button(
                         onClick = {
-                            wifiDirectService?.disconnect();
-                        }
+                            startClientRangingWork(hostAddress.value)
+                        },
+                        enabled = (hostAddress.value != "")
                     ) {
-                        Text(text = "disconnect")
+                        Text(text = "Start Ranging")
                     }
                 }
+
                 LazyColumn(
                     modifier = Modifier
                         .height(100.dp)
@@ -343,12 +340,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-
-                WIFIP2PScreen { message ->
-                    val intent = Intent(this@MainActivity, WifiP2P::class.java)
-                    intent.putExtra("message", message)
-                    startActivity(intent)
-                }
+//
+//                WIFIP2PScreen { message ->
+//                    val intent = Intent(this@MainActivity, WifiP2P::class.java)
+//                    intent.putExtra("message", message)
+//                    startActivity(intent)
+//                }
                 Spacer(modifier = Modifier.width(20.dp))
 
                 AndroidView(
