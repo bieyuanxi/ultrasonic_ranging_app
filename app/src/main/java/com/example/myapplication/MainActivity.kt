@@ -427,6 +427,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startServerRangingWork() {
         rangingServer.startServer() { reader: BufferedReader, writer: BufferedWriter ->
+            distance.floatValue = 0.0f
             val mIndex = intArrayOf(0, 0, 0)    // m_aa, m_ba, garbage
             var i = 0
             writer.write("startRecording\n")
@@ -493,6 +494,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startClientRangingWork(host: String) {
         rangingClient.startClient(host) { reader: BufferedReader, writer: BufferedWriter ->
+            distance.floatValue = 0.0f
             val mIndex = intArrayOf(0, 0, 0)    // m_ab, m_bb, garbage
             var i = 0
             reader.readLine();  // startRecording
