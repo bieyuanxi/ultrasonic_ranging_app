@@ -202,82 +202,82 @@ class MainActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(text = "声波发送和接收示例")
-//                Row {
-//                    Button(
-//                        onClick = {
-//                            if (isPlayingState.value) {
-//                                stopPlaying()
-//                            } else {
-//                                val audioData = genAudioData()
-//                                playSound(audioData)
-//                            }
-//                        }
-//                    ) {
-//                        Text(text = if (isPlayingState.value) "停止全带宽" else "发送全带宽")
-//                    }
-//                    Spacer(modifier = Modifier.width(20.dp))
-//                    Button(
-//                        onClick = {
-//                            if (isPlayingState.value) {
-//                                stopPlaying()
-//                            } else {
-//                                val audioData = genEvenAudioData()
-//                                playSound(audioData)
-//                            }
-//                        }
-//                    ) {
-//                        Text(text = if (isPlayingState.value) "停止even" else "发送even")
-//                    }
-//                    Spacer(modifier = Modifier.width(20.dp))
-//                    Button(
-//                        onClick = {
-//                            if (isPlayingState.value) {
-//                                stopPlaying()
-//                            } else {
-//                                val audioData = genOddAudioData()
-//                                playSound(audioData)
-//                            }
-//                        }
-//                    ) {
-//                        Text(text = if (isPlayingState.value) "停止odd" else "发送odd")
-//                    }
-//                }
-//                Spacer(modifier = Modifier.width(20.dp))
-//                Row {
-//                    Button(
-//                        onClick = {
-//                            if (isRecordingState.value) {
-//                                stopRecording()
-//                            } else {
-//                                startRecording()
-//                            }
-//                        }
-//                    ) {
-//                        Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
-//                    }
-//                    Button(
-//                        onClick = {
-//                            if (isRecordingState.value) {
-//                                stopRecording()
-//                            } else {
-//                                startRecording(evenDiscreteImpulseTrain)
-//                            }
-//                        }
-//                    ) {
-//                        Text(text = if (isRecordingState.value) "停止录制even" else "开始录制even")
-//                    }
-//                    Button(
-//                        onClick = {
-//                            if (isRecordingState.value) {
-//                                stopRecording()
-//                            } else {
-//                                startRecording(oddDiscreteImpulseTrain)
-//                            }
-//                        }
-//                    ) {
-//                        Text(text = if (isRecordingState.value) "停止录制odd" else "开始录制odd")
-//                    }
-//                }
+                Row {
+                    Button(
+                        onClick = {
+                            if (isPlayingState.value) {
+                                stopPlaying()
+                            } else {
+                                val audioData = genAudioData()
+                                playSound(audioData)
+                            }
+                        }
+                    ) {
+                        Text(text = if (isPlayingState.value) "停止全带宽" else "发送全带宽")
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                    Button(
+                        onClick = {
+                            if (isPlayingState.value) {
+                                stopPlaying()
+                            } else {
+                                val audioData = genEvenAudioData()
+                                playSound(audioData)
+                            }
+                        }
+                    ) {
+                        Text(text = if (isPlayingState.value) "停止even" else "发送even")
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                    Button(
+                        onClick = {
+                            if (isPlayingState.value) {
+                                stopPlaying()
+                            } else {
+                                val audioData = genOddAudioData()
+                                playSound(audioData)
+                            }
+                        }
+                    ) {
+                        Text(text = if (isPlayingState.value) "停止odd" else "发送odd")
+                    }
+                }
+                Spacer(modifier = Modifier.width(20.dp))
+                Row {
+                    Button(
+                        onClick = {
+                            if (isRecordingState.value) {
+                                stopRecording()
+                            } else {
+                                startRecording()
+                            }
+                        }
+                    ) {
+                        Text(text = if (isRecordingState.value) "停止录制" else "开始录制")
+                    }
+                    Button(
+                        onClick = {
+                            if (isRecordingState.value) {
+                                stopRecording()
+                            } else {
+                                startRecording(evenDiscreteImpulseTrain)
+                            }
+                        }
+                    ) {
+                        Text(text = if (isRecordingState.value) "停止录制even" else "开始录制even")
+                    }
+                    Button(
+                        onClick = {
+                            if (isRecordingState.value) {
+                                stopRecording()
+                            } else {
+                                startRecording(oddDiscreteImpulseTrain)
+                            }
+                        }
+                    ) {
+                        Text(text = if (isRecordingState.value) "停止录制odd" else "开始录制odd")
+                    }
+                }
                 Text(
                     text = "m = ${m.intValue}, phi = ${"%.3f".format(phi.doubleValue)}, distance = ${
                         "%.3f".format(
@@ -507,17 +507,15 @@ class MainActivity : ComponentActivity() {
                     mIndex[i] = maxIndexedValue.index
                 }
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    withContext(Dispatchers.Main) {
-                        lineDataEntries = lineDataEntries.apply {
-                            clear()
-                            addAll(mag.mapIndexed { index, d ->
-                                Entry(
-                                    index.toFloat(),
-                                    d.toFloat()
-                                )
-                            })
-                        }
+                CoroutineScope(Dispatchers.Main).launch {
+                    lineDataEntries = lineDataEntries.apply {
+                        clear()
+                        addAll(mag.mapIndexed { index, d ->
+                            Entry(
+                                index.toFloat(),
+                                d.toFloat()
+                            )
+                        })
                     }
                 }
             })
@@ -531,9 +529,10 @@ class MainActivity : ComponentActivity() {
 
             val audioData = genAudioData()
             playSound(audioData)
-
+            delay(1000) // play at least 1000ms
             reader.readLine() // ServerRangingDone
             i = 2
+            stopRecording()
             stopPlaying()
 
             writer.write("${mIndex[0]}, ${mIndex[1]}\n")
@@ -550,7 +549,8 @@ class MainActivity : ComponentActivity() {
 
             distance.floatValue = get_distance(m_aa, m_ab, m_bb, m_ba)
 
-            stopRecording()
+
+            Log.d("startClientRangingWork", "done")
         }
     }
 
