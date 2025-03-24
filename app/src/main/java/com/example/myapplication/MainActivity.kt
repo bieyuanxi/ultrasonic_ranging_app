@@ -441,17 +441,15 @@ class MainActivity : ComponentActivity() {
                     mIndex[i] = maxIndexedValue.index
                 }
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    withContext(Dispatchers.Main) {
-                        lineDataEntries = lineDataEntries.apply {
-                            clear()
-                            addAll(mag.mapIndexed { index, d ->
-                                Entry(
-                                    index.toFloat(),
-                                    d.toFloat()
-                                )
-                            })
-                        }
+                CoroutineScope(Dispatchers.Main).launch {
+                    lineDataEntries = lineDataEntries.apply {
+                        clear()
+                        addAll(mag.mapIndexed { index, d ->
+                            Entry(
+                                index.toFloat(),
+                                d.toFloat()
+                            )
+                        })
                     }
                 }
             })
@@ -469,14 +467,18 @@ class MainActivity : ComponentActivity() {
             writer.write("startClientAudioTrack\n")
             writer.flush()
 
+            reader.readLine()   // startClientAudioTrack:OK
+
             delay(1000)
             i = 2
+            Log.d("BBBBBBBBBBBBB", "")
             stopRecording()
+
             writer.write("ServerRangingDone\n")
             writer.flush()
 
             val str = reader.readLine()
-
+            Log.d("BBBBBBBBBBBBB", "")
 
             val m_aa = mIndex[0]
             val m_ba = mIndex[1]
@@ -519,9 +521,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             })
+
             reader.readLine();  // startServerAudioTrack
+
             delay(1000)
             i = 1
+
             writer.write("ClientRangingDone\n")    //
             writer.flush()
 
@@ -529,8 +534,14 @@ class MainActivity : ComponentActivity() {
 
             val audioData = genAudioData()
             playSound(audioData)
+
+            writer.write("startClientAudioTrack:OK\n")    //
+            writer.flush()
+
             delay(1000) // play at least 1000ms
+            Log.d("BBBBBBBBBBBBB", "")
             reader.readLine() // ServerRangingDone
+            Log.d("CCCCCCCCCCCCCCCCCCCCCCCCCCCC", "")
             i = 2
             stopRecording()
             stopPlaying()
