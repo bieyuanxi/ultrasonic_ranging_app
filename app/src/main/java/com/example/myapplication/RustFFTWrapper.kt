@@ -9,17 +9,17 @@ object RustFFTWrapper {
         val inputSize = input.size
         val inputPtr = Memory(inputSize * 8L) // 每个Complex占8字节（2个float）
         input.forEachIndexed { i, c ->
-            inputPtr.setFloat(i * 8L, c.real.toFloat())
-            inputPtr.setFloat(i * 8L + 4, c.imag.toFloat())
+            inputPtr.setFloat(i * 8L, c.real)
+            inputPtr.setFloat(i * 8L + 4, c.imag)
         }
         val outputPtr = Memory(inputSize * 8L)
 
         lib.fft_forward(inputPtr, outputPtr, inputSize, inverse)
 
-        val output = MutableList(inputSize){Complex(0.0, 0.0)}
+        val output = MutableList(inputSize){Complex(0.0f, 0.0f)}
         output.forEachIndexed { i, _ ->
-            output[i].real = outputPtr.getFloat(i * 8L).toDouble()
-            output[i].imag = outputPtr.getFloat(i * 8L + 4).toDouble()
+            output[i].real = outputPtr.getFloat(i * 8L)
+            output[i].imag = outputPtr.getFloat(i * 8L + 4)
 
         }
         inputPtr.close()

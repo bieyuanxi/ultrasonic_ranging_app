@@ -65,7 +65,7 @@ class AudioRecordManager {
                     read = audioRecord?.read(buffer, 0, FRAME_LEN, AudioRecord.READ_BLOCKING)?: 0
 //                    Log.d("buffer", buffer.toList().toString())
 //                    Log.d("audioRecord", "read len: $read")
-                    val y = buffer.map { Complex(it.toDouble(), 0.0) }
+                    val y = buffer.map { Complex(it, 0.0f) }
                     // FIXME: GC & memory
                     val cir: List<Complex> = if (odd != null) {
                         demodulate(y, ZC_hat_prime, FRAME_LEN, I = odd)

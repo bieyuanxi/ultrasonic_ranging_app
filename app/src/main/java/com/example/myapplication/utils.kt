@@ -25,13 +25,13 @@ fun conjugation(list: List<Complex>): List<Complex> {
     }
 }
 
-fun magnitude(list: List<Complex>): List<Double> {
+fun magnitude(list: List<Complex>): List<Float> {
     return List(list.size) { i ->
         list[i].abs()
     }
 }
 
-fun signedMagnitude(list: List<Complex>): List<Double> {
+fun signedMagnitude(list: List<Complex>): List<Float> {
     return List(list.size) { i ->
         val abs = list[i].abs()
         if (list[i].real > 0) {
@@ -53,17 +53,18 @@ fun discreteImpulseTrain(Nzc: Int = 960, odd: Boolean = false): List<Int> {
 }
 
 // [-PI, PI)
-fun calculatePhaseShift(complex: Complex): Double {
+fun calculatePhaseShift(complex: Complex): Float {
     val realPart = complex.real
     val imaginaryPart = complex.imag
-    return when {
-        realPart == 0.0 && imaginaryPart > 0 -> PI / 2
-        realPart == 0.0 && imaginaryPart < 0 -> -PI / 2
+    val r =  when {
+        realPart == 0.0f && imaginaryPart > 0 -> PI / 2
+        realPart == 0.0f && imaginaryPart < 0 -> -PI / 2
         realPart > 0 -> atan(imaginaryPart / realPart)
         imaginaryPart <= 0 -> -PI + atan(imaginaryPart / realPart)
         imaginaryPart > 0 -> PI + atan(imaginaryPart / realPart)
         else -> 0.0
     }
+    return r.toFloat()
 }
 
 fun genOddAudioData(): FloatArray {

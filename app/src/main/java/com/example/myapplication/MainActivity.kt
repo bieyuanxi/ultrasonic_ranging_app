@@ -34,6 +34,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -69,7 +70,7 @@ class MainActivity : ComponentActivity() {
     private val isRecordingState = mutableStateOf(false)
     private var lineDataEntries = mutableStateListOf<Entry>()
     private val m = mutableIntStateOf(0)
-    private val phi = mutableDoubleStateOf(0.0)
+    private val phi = mutableFloatStateOf(0.0f)
     private val distance = mutableFloatStateOf(0.0f)
 
     private val oddDiscreteImpulseTrain = discreteImpulseTrain(81, true)
@@ -279,7 +280,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 Text(
-                    text = "m = ${m.intValue}, phi = ${"%.3f".format(phi.doubleValue)}, distance = ${
+                    text = "m = ${m.intValue}, phi = ${"%.3f".format(phi.floatValue)}, distance = ${
                         "%.3f".format(
                             distance.floatValue
                         )
@@ -397,7 +398,7 @@ class MainActivity : ComponentActivity() {
             val maxIndexedValue = mag.withIndex().maxByOrNull { it.value }
             if (maxIndexedValue != null) {
                 m.intValue = maxIndexedValue.index
-                phi.doubleValue = calculatePhaseShift(cir[maxIndexedValue.index])
+                phi.floatValue = calculatePhaseShift(cir[maxIndexedValue.index])
             }
 
             CoroutineScope(Dispatchers.IO).launch {
@@ -437,7 +438,7 @@ class MainActivity : ComponentActivity() {
                 val maxIndexedValue = mag.withIndex().maxByOrNull { it.value }
                 if (maxIndexedValue != null) {
                     m.intValue = maxIndexedValue.index
-                    phi.doubleValue = calculatePhaseShift(cir[maxIndexedValue.index])
+                    phi.floatValue = calculatePhaseShift(cir[maxIndexedValue.index])
                     mIndex[i] = maxIndexedValue.index
                 }
 
@@ -505,7 +506,7 @@ class MainActivity : ComponentActivity() {
                 val maxIndexedValue = mag.withIndex().maxByOrNull { it.value }
                 if (maxIndexedValue != null) {
                     m.intValue = maxIndexedValue.index
-                    phi.doubleValue = calculatePhaseShift(cir[maxIndexedValue.index])
+                    phi.floatValue = calculatePhaseShift(cir[maxIndexedValue.index])
                     mIndex[i] = maxIndexedValue.index
                 }
 

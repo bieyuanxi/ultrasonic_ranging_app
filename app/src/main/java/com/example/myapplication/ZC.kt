@@ -5,7 +5,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 // TODO：用Common Math里的Complex代替
-data class Complex(var real: Double, var imag: Double) {
+data class Complex(var real: Float, var imag: Float) {
     operator fun plus(other: Complex): Complex {
         return Complex(real + other.real, imag + other.imag)
     }
@@ -24,7 +24,7 @@ data class Complex(var real: Double, var imag: Double) {
         return Complex(real * other, imag * other)
     }
 
-    operator fun div(divisor: Double): Complex {
+    operator fun div(divisor: Float): Complex {
         return Complex(real / divisor, imag / divisor)
     }
 
@@ -36,7 +36,7 @@ data class Complex(var real: Double, var imag: Double) {
         return Complex(real, -imag)
     }
 
-    fun abs(): Double {
+    fun abs(): Float {
         return kotlin.math.sqrt(real * real + imag * imag)
     }
 
@@ -54,7 +54,7 @@ fun generateZCSequence(u: Int, q: Int, N: Int): List<Complex> {
         val phase = -PI * u * n * (n + 1) / q
         val realPart = cos(phase)
         val imagPart = sin(phase)
-        sequence.add(Complex(realPart, imagPart))
+        sequence.add(Complex(realPart.toFloat(), imagPart.toFloat()))
     }
     return sequence
 }
@@ -62,7 +62,7 @@ fun generateZCSequence(u: Int, q: Int, N: Int): List<Complex> {
 // 自相关运算
 fun autoCorrelation(sequence: List<Complex>, k: Int): Complex {
     val n = sequence.size
-    var result = Complex(0.0, 0.0)
+    var result = Complex(0.0f, 0.0f)
     for (i in 0 until n) {
         val index = (i + k) % n
         result += sequence[i] * sequence[index].conjugate()
@@ -73,7 +73,7 @@ fun autoCorrelation(sequence: List<Complex>, k: Int): Complex {
 // 互相关运算
 fun crossCorrelation(sequence1: List<Complex>, sequence2: List<Complex>, k: Int): Complex {
     val N = sequence1.size
-    var result = Complex(0.0, 0.0)
+    var result = Complex(0.0f, 0.0f)
     for (n in 0 until N) {
         val index = (n + k) % N
         result += sequence1[n] * sequence2[index].conjugate()

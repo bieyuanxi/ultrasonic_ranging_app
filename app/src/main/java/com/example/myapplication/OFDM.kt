@@ -6,7 +6,7 @@ fun modulate(N: Int = 960, f_c: Int = 19000, f_s: Int = 48000, ZC_hat: List<Comp
     val Nzc = ZC_hat.size
     val h_zc = Nzc / 2
     val n_c = N * f_c / f_s
-    val X = Array(N) { Complex(0.0, 0.0) }
+    val X = Array(N) { Complex(0.0f, 0.0f) }
     for(i in 0 until Nzc) {
         X[i + n_c - h_zc] = ZC_hat[i]
     }
@@ -23,7 +23,7 @@ fun modulate(ZC_hat: List<Complex>, N: Int = 960, f_c: Int = 19000, f_s: Int = 4
     val Nzc = ZC_hat.size
     val h_zc = Nzc / 2
     val n_c = N * f_c / f_s
-    val X = Array(N) { Complex(0.0, 0.0) }
+    val X = Array(N) { Complex(0.0f, 0.0f) }
     for(i in 0 until Nzc) {
         X[i + n_c - h_zc] = ZC_hat[i]
     }
@@ -56,13 +56,13 @@ fun demodulate(y: List<Complex>, ZC_hat_prime: List<Complex>, N_prime: Int, f_c:
     }
 
     // conjugate multiplication
-    val CFR_hat = MutableList(N_zc) { Complex(0.0, 0.0) }
+    val CFR_hat = MutableList(N_zc) { Complex(0.0f, 0.0f) }
     for (i in 0 .. 2 * h_zc) {
         CFR_hat[i] = ZC_hat_prime[i] * Y[i + n_c - h_zc]
     }
 
     // Zero padding
-    val CFR = MutableList(N_prime) { Complex(0.0, 0.0) }
+    val CFR = MutableList(N_prime) { Complex(0.0f, 0.0f) }
     for (i in 0 .. h_zc) {
         CFR[i] = CFR_hat[i + h_zc]
     }
@@ -86,13 +86,13 @@ fun demodulate(y: List<Complex>, ZC_hat_prime: List<Complex>, N_prime: Int, f_c:
     val Y = RustFFTWrapper.fft(y)
 
     // conjugate multiplication
-    val CFR_hat = MutableList(N_zc) { Complex(0.0, 0.0) }
+    val CFR_hat = MutableList(N_zc) { Complex(0.0f, 0.0f) }
     for (i in 0 .. 2 * h_zc) {
         CFR_hat[i] = ZC_hat_prime[i] * Y[i + n_c - h_zc]
     }
 
     // Zero padding
-    val CFR = MutableList(N_prime) { Complex(0.0, 0.0) }
+    val CFR = MutableList(N_prime) { Complex(0.0f, 0.0f) }
     for (i in 0 .. h_zc) {
         CFR[i] = CFR_hat[i + h_zc]
     }
