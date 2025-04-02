@@ -2,18 +2,15 @@ package com.example.myapplication
 
 import android.annotation.SuppressLint
 import android.app.Service
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pDevice
-import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
-import androidx.compose.runtime.mutableStateListOf
 
 class WifiDirectService : Service() {
     private lateinit var manager: WifiP2pManager

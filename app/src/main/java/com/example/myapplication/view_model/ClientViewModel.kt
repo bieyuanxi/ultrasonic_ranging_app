@@ -6,12 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.PrintWriter
 import java.net.Socket
 
-class SocketViewModel : ViewModel() {
+class ClientViewModel : ViewModel() {
 
     private var socket: Socket? = null
     private var writer: PrintWriter? = null
@@ -36,7 +37,7 @@ class SocketViewModel : ViewModel() {
         }
     }
 
-    private suspend fun receiveMessages() {
+    private suspend fun receiveMessages() = withContext(Dispatchers.IO) {
         try {
             var message: String?
             while (socket?.isConnected == true && reader != null) {

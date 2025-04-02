@@ -4,11 +4,14 @@ import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.NetworkInfo
 import android.net.wifi.p2p.WifiP2pDevice
+import android.net.wifi.p2p.WifiP2pGroup
 import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
 import android.util.Log
+import com.example.myapplication.view_model.WifiDirectViewModel
 
 interface DirectActionListener : WifiP2pManager.ChannelListener {
     fun onWifiP2pStateChanged(enabled: Boolean)
@@ -28,6 +31,7 @@ interface DirectActionListener : WifiP2pManager.ChannelListener {
 class WiFiDirectBroadcastReceiver(
     private val manager: WifiP2pManager,
     private val channel: WifiP2pManager.Channel,
+    private val viewModel: WifiDirectViewModel? = null
 ) : BroadcastReceiver() {
     private val TAG = "WiFiDirectBroadcastReceiver"
 
@@ -35,6 +39,15 @@ class WiFiDirectBroadcastReceiver(
 
     fun setDirectActionListener(listener: DirectActionListener) {
         directActionListener = listener
+    }
+
+    fun getIntentFilter(): IntentFilter {
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION)
+        return intentFilter
     }
 
     @SuppressLint("MissingPermission")
@@ -50,12 +63,15 @@ class WiFiDirectBroadcastReceiver(
                     directActionListener?.onPeersListChanged(emptyList())
                 }
                 Log.d(TAG, "WIFI_P2P_STATE_CHANGED_ACTION： $enabled")
+                viewModel?.updateWifiDirectState(enabled)
             }
 
             WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
                 Log.d(TAG, "WIFI_P2P_PEERS_CHANGED_ACTION")
                 manager.requestPeers(channel) { peers ->
                     directActionListener?.onPeersListChanged(peers.deviceList.toList())
+
+                    viewModel?.updatePeers(peers)
                 }
             }
 
@@ -74,6 +90,18 @@ class WiFiDirectBroadcastReceiver(
                     directActionListener?.onDisconnection()
                     Log.d(TAG, "与 P2P 设备已断开连接")
                 }
+
+                val wifiP2pInfo =
+                    intent.getParcelableExtra<WifiP2pInfo>(WifiP2pManager.EXTRA_WIFI_P2P_INFO)
+
+                val WifiP2pGroup =
+                    intent.getParcelableExtra<WifiP2pGroup>(WifiP2pManager.EXTRA_WIFI_P2P_GROUP)
+
+                if (networkInfo != null) {
+                    if (wifiP2pInfo != null) {
+                        viewModel?.updateConnectionStatus(networkInfo, wifiP2pInfo, WifiP2pGroup)
+                    }
+                }
             }
 
             WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
@@ -83,6 +111,8 @@ class WiFiDirectBroadcastReceiver(
                     directActionListener?.onThisDeviceChanged(wifiP2pDevice)
                 }
                 Log.d(TAG, "WIFI_P2P_THIS_DEVICE_CHANGED_ACTION ： ${wifiP2pDevice.toString()}")
+
+                viewModel?.updateThisDevice(wifiP2pDevice)
             }
         }
     }

@@ -194,8 +194,8 @@ class MainActivity : ComponentActivity() {
         audioTrackManager = AudioTrackManager()
         audioRecordManager = AudioRecordManager()
 
-        val intent = Intent(this, WifiDirectService::class.java)
-        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+//        val intent = Intent(this, WifiDirectService::class.java)
+//        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
         setContent {
             Column(
@@ -350,7 +350,23 @@ class MainActivity : ComponentActivity() {
 //                    intent.putExtra("message", message)
 //                    startActivity(intent)
 //                }
+                Row {
+                    ServerScreen { message ->
+                        val intent = Intent(this@MainActivity, ServerActivity::class.java)
+                        intent.putExtra("message", message)
+                        startActivity(intent)
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                    ClientScreen { message ->
+                        val intent = Intent(this@MainActivity, ClientActivity::class.java)
+                        intent.putExtra("message", message)
+                        startActivity(intent)
+                    }
+                }
+
+
                 Spacer(modifier = Modifier.width(20.dp))
+
 
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
@@ -609,6 +625,26 @@ fun WIFIP2PScreen(onButtonClick: (String) -> Unit) {
     ) {
         Button(onClick = { onButtonClick("来自第一个 Activity 的消息") }) {
             Text(text = "跳转到WIFIP2PScreen")
+        }
+    }
+}
+
+@Composable
+fun ServerScreen(onButtonClick: (String) -> Unit) {
+    Column(
+    ) {
+        Button(onClick = { onButtonClick("来自第一个 Activity 的消息") }) {
+            Text(text = "Server")
+        }
+    }
+}
+
+@Composable
+fun ClientScreen(onButtonClick: (String) -> Unit) {
+    Column(
+    ) {
+        Button(onClick = { onButtonClick("来自第一个 Activity 的消息") }) {
+            Text(text = "Client")
         }
     }
 }
