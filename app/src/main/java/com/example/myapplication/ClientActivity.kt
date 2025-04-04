@@ -88,15 +88,11 @@ fun Greeting2(name: String, modifier: Modifier = Modifier) {
     val clientViewModel: ClientViewModel = viewModel()
     val wifiDirectViewModel: WifiDirectViewModel = viewModel()
 
-    val wifiDirectState = wifiDirectViewModel.wifiDirectState.observeAsState()
-    val isConnected = wifiDirectViewModel.isConnected.observeAsState()
-    val groupOwnerAddress = wifiDirectViewModel.groupOwnerAddress.observeAsState()
-    if (isConnected.value == true) {
-        groupOwnerAddress.value?.let {
-            clientViewModel.connectToServer(
-                it, 8888)
-
-        }
+    val wifiDirectState by wifiDirectViewModel.wifiDirectState.observeAsState(false)
+    val isConnected by wifiDirectViewModel.isConnected.observeAsState(false)
+    val groupOwnerAddress by wifiDirectViewModel.groupOwnerAddress.observeAsState("")
+    if (isConnected) {
+        clientViewModel.connectToServer(groupOwnerAddress, 8888)
     }
 
     Column(
@@ -104,7 +100,7 @@ fun Greeting2(name: String, modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Hello ClientActivity, wifiDirectEnabled=${wifiDirectState.value}"
+            text = "Hello ClientActivity, wifiDirectEnabled=${wifiDirectState}"
         )
         Button(
             onClick = {
@@ -132,8 +128,6 @@ fun Greeting2(name: String, modifier: Modifier = Modifier) {
                 items(deviceList.deviceList.toList()) { device: WifiP2pDevice ->
                     Button(onClick = {
                         wifiDirectViewModel.connectToDevice(device)
-
-//                        clientViewModel.connectToServer(device., 8888)
                     }) {
                         Text(text = device.deviceName)
                     }

@@ -28,7 +28,7 @@ class ServerViewModel : ViewModel() {
     private val _isServerRunning = MutableStateFlow(false)
     val isServerRunning: StateFlow<Boolean> = _isServerRunning
 
-    private val connectedSockets = ConcurrentHashMap<String, Socket>()
+    val connectedSockets = ConcurrentHashMap<String, Socket>()
     private val _connectedSocketInfo = MutableStateFlow<List<String>>(emptyList())
     val connectedSocketInfo: StateFlow<List<String>> = _connectedSocketInfo
 

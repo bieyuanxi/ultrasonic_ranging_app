@@ -3,7 +3,6 @@ package com.example.myapplication
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.wifi.p2p.WifiP2pManager
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -31,7 +30,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.sound.AudioRecordManager
 import com.example.myapplication.sound.AudioTrackManager
 import com.example.myapplication.view_model.WifiDirectViewModel
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.PrintWriter
+import java.net.Socket
 
 class ServerActivity : ComponentActivity() {
     private var audioRecordManager = AudioRecordManager()
@@ -96,14 +101,14 @@ fun Greeting3(modifier: Modifier = Modifier) {
     val wifiDirectViewModel: WifiDirectViewModel = viewModel()
 
     val connectedList by serverViewModel.connectedSocketInfo.collectAsState()
-    val wifiDirectState = wifiDirectViewModel.wifiDirectState.observeAsState()
+    val wifiDirectState by wifiDirectViewModel.wifiDirectState.observeAsState(false)
 
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Hello ServerActivity, wifiDirectState=${wifiDirectState.value}"
+            text = "Hello ServerActivity, wifiDirectState=${wifiDirectState}"
         )
         Button(
             onClick = {
@@ -122,12 +127,30 @@ fun Greeting3(modifier: Modifier = Modifier) {
             Text(text = "Remove Group")
         }
         Button(
-            onClick = {}
+            onClick = {
+                startRangingWork(serverViewModel.connectedSockets.values.toList())
+            }
         ) {
             Text(text = "Start Ranging")
         }
         Text(text = "Socket Client count: ${connectedList.size}")
     }
+
+}
+
+fun startRangingWork(socketList: List<Socket>) {
+    CoroutineScope(Dispatchers.IO).launch {
+        for(socket in socketList) {
+            val input = BufferedReader(InputStreamReader(socket.inputStream))
+            val output = PrintWriter(socket.outputStream, true)
+
+            output.println("StartAudioRecord")
+            val message = input.readLine()  // OK
+
+
+        }
+    }
+
 }
 
 @Preview(showBackground = true)
