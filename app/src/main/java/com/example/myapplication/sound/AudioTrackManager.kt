@@ -18,10 +18,10 @@ class AudioTrackManager {
 
     fun playSound(audioData: FloatArray, loopCount: Int = -1) {
         // 配置 AudioTrack 参数
-        val channelConfig = AudioFormat.CHANNEL_OUT_MONO
+        val channelConfig = AudioFormat.CHANNEL_OUT_STEREO
         val audioFormat = AudioFormat.ENCODING_PCM_FLOAT
         val bufferSizeInBytes = AudioTrack.getMinBufferSize(SAMPLE_RATE, channelConfig, audioFormat)
-
+        Log.d("bufferSizeInBytes", "$bufferSizeInBytes")
         playingThread = Thread {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
             audioTrack = AudioTrack.Builder()
@@ -43,15 +43,33 @@ class AudioTrackManager {
                 .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)    // performance mode
                 .build()
 
-            audioTrack?.setVolume(1.0f)
-            // 写入音频数据
-            // In static buffer mode, copies the data to the buffer starting at offset 0, and the write mode is ignored.
-            // Note that the actual playback of this data might occur after this function returns.
-            audioTrack?.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
+//            audioTrack?.setVolume(1.0f)
+//            audioTrack?.setStereoVolume(0.0f, 1.0f)
+
+            val buffer = FloatArray(audioData.size * 2)
+
+            audioData.forEachIndexed { index, fl ->
+                buffer[index * 2] = fl
+                buffer[index * 2 + 1] = fl
+            }
+            audioTrack?.setStereoVolume(1.0f, 0.0f)
+
+
+            audioTrack?.write(buffer, 0, buffer.size, AudioTrack.WRITE_BLOCKING)
 
             // 设置重复播放, loopCount = 重复播放次数（例如loopCount=k，则播放1+k次）
             val result = audioTrack?.setLoopPoints(0, audioData.size, loopCount)
             assert(result != AudioTrack.ERROR_BAD_VALUE)
+
+//
+//            // 写入音频数据
+//            // In static buffer mode, copies the data to the buffer starting at offset 0, and the write mode is ignored.
+//            // Note that the actual playback of this data might occur after this function returns.
+//            audioTrack?.write(audioData, 0, audioData.size, AudioTrack.WRITE_BLOCKING)
+//
+//            // 设置重复播放, loopCount = 重复播放次数（例如loopCount=k，则播放1+k次）
+//            val result = audioTrack?.setLoopPoints(0, audioData.size, loopCount)
+//            assert(result != AudioTrack.ERROR_BAD_VALUE)
             // 开始播放
             Log.d("playSound", "before call play()")
             audioTrack?.play()   // time?

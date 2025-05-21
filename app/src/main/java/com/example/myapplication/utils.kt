@@ -1,7 +1,10 @@
 package com.example.myapplication
 
+import android.util.Log
 import kotlin.math.PI
 import kotlin.math.atan
+
+const val f_c = 19000   // carrier frequency
 
 fun <T> shiftLeft(list: List<T>, shift: Int): List<T> {
     val n = list.size
@@ -77,7 +80,7 @@ fun genOddAudioData(): FloatArray {
     val ZC_hat = shiftRight(ZC, h_zc)
 
     val N = 960     // frame length
-    val f_c = 19000 // carrier frequency
+//    val f_c = 19000 // carrier frequency
     val f_s = 48000 // sampling frequency
     val n_c = N * f_c / f_s
     val odd = true
@@ -96,7 +99,7 @@ fun genEvenAudioData(): FloatArray {
     val ZC_hat = shiftRight(ZC, h_zc)
 
     val N = 960     // frame length
-    val f_c = 19000 // carrier frequency
+//    val f_c = 19000 // carrier frequency
     val f_s = 48000 // sampling frequency
     val n_c = N * f_c / f_s
     val odd = false
@@ -115,7 +118,7 @@ fun genAudioData(): FloatArray {
     val ZC_hat = shiftRight(ZC, h_zc)
 
     val N = 960     // frame length
-    val f_c = 19000 // carrier frequency
+//    val f_c = 13000 // carrier frequency
     val f_s = 48000 // sampling frequency
     val n_c = N * f_c / f_s
     val odd = true
@@ -129,9 +132,27 @@ fun get_distance(
     N_prime: Int = 960, c: Float = 343.0f, N: Int = 960, f_s: Int = 48000
 ): Float {
     val m = m_aa + m_bb - m_ab - m_ba
-    for (i in -5..5) {
+    val range = c * N_prime / f_s
+
+//    for (i in -2..2) {
+//        val d = -(m + (i * N_prime)) * c * N / f_s / N_prime
+//        Log.d("distance_candidate", "$d")
+//    }
+
+//    val ma = (m_ab - m_aa + N_prime) % N_prime
+//    val mb = (m_ba - m_bb + N_prime) % N_prime
+//    val d = (ma + mb) * c * N / f_s / N_prime   // dAB + dBA − dAA − dBB
+
+//    val m = (m_aa + m_bb - m_ab - m_ba + 2 * N_prime) % (2 * N_prime)
+//    val d = m * c * N / f_s / N_prime   // dAB + dBA − dAA − dBB
+//
+//    Log.d("dAB + dBA − dAA − dBB", "$d")
+//
+//    return d / 2
+
+    for (i in -2..2) {
         val d = -(m + (i * N_prime)) * c * N / f_s / N_prime
-        if (d in 0.0f..7.0f) {
+        if (d in 0.0f..range) {
             return d / 2
         }
     }

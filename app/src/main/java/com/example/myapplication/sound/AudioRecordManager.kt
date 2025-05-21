@@ -4,11 +4,13 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Process
 import android.util.Log
 import com.example.myapplication.Complex
 import com.example.myapplication.conjugation
 import com.example.myapplication.demodulate
 import com.example.myapplication.dft
+import com.example.myapplication.f_c
 import com.example.myapplication.generateZCSequence
 import com.example.myapplication.shiftRight
 import java.io.IOException
@@ -37,7 +39,7 @@ class AudioRecordManager {
         val ZC_hat = shiftRight(ZC, h_zc)
         val ZC_hat_prime = conjugation(ZC_hat)
 
-        val channelConfig = AudioFormat.CHANNEL_IN_MONO
+        val channelConfig = AudioFormat.CHANNEL_IN_STEREO
         val audioFormat = AudioFormat.ENCODING_PCM_FLOAT
         val bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, channelConfig, audioFormat)
         audioRecord = AudioRecord.Builder()
@@ -57,20 +59,41 @@ class AudioRecordManager {
         audioRecord?.startRecording()
         Log.d("preheating done", "")
         recordingThread = Thread {
-            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
+            Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
             try {
-                val buffer = FloatArray(FRAME_LEN)
+                val buffer = FloatArray(FRAME_LEN * 2)
                 var read: Int
                 while (!Thread.currentThread().isInterrupted) {
-                    read = audioRecord?.read(buffer, 0, FRAME_LEN, AudioRecord.READ_BLOCKING)?: 0
+                    read = audioRecord?.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)?: 0
 //                    Log.d("buffer", buffer.toList().toString())
 //                    Log.d("audioRecord", "read len: $read")
-                    val y = buffer.map { Complex(it, 0.0f) }
+//                    val y = buffer.map { Complex(it, 0.0f) }
+                    val left = Array(
+                        FRAME_LEN,
+                        init = {
+                            Complex(0.0f, 0.0f)
+                        }
+                    )
+                    val right = Array(
+                        FRAME_LEN,
+                        init = {
+                            Complex(0.0f, 0.0f)
+                        }
+                    )
+                    buffer.forEachIndexed { index, fl ->
+                        if (index % 2 == 0) {
+                            left[index / 2].real = fl
+                        } else {
+                            right[index / 2].real = fl
+                        }
+                    }
+
+                    val y = left.toList()
                     // FIXME: GC & memory
                     val cir: List<Complex> = if (odd != null) {
                         demodulate(y, ZC_hat_prime, FRAME_LEN, I = odd)
                     } else {
-                        demodulate(y, ZC_hat_prime, FRAME_LEN)
+                        demodulate(y, ZC_hat_prime, FRAME_LEN, f_c = f_c)
                     }
 
                     listener.onDataAvailable(cir)

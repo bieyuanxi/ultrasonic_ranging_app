@@ -194,8 +194,8 @@ class MainActivity : ComponentActivity() {
         audioTrackManager = AudioTrackManager()
         audioRecordManager = AudioRecordManager()
 
-//        val intent = Intent(this, WifiDirectService::class.java)
-//        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        val intent = Intent(this, WifiDirectService::class.java)
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
         setContent {
             Column(
